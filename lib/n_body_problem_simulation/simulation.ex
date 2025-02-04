@@ -15,18 +15,24 @@ defmodule NBodyProblemSimulation.Simulation do
       bodies: [
         %{
           id: 1,
-          mass: 10.0,
-          # Centered in a 3D volume (we’ll later adjust coordinates for rendering)
+          mass: 100.0,
+          color: 0x0077ff,
           pos: {250.0, 250.0, 250.0},
-          vel: {0.0, 0.0, 0.0}
+          vel: {2.0, 3.0, -1.0}
         },
         %{
           id: 2,
-          mass: 1.0,
-          # Start offset in 3D space
-          pos: {250.0, 100.0, 250.0},
-          # Initial velocity given a tangential component (feel free to tweak)
-          vel: {1.5, 0.0, 0.5}
+          mass: 100.0,
+          color: 0xff0000,
+          pos: {250.0, 200.0, 250.0},
+          vel: {4, 1.0, 0.5}
+        },
+        %{
+          id: 3,
+          mass: 10000.0,
+          color: 0x00ff00,
+          pos: {150.0, 200.0, 50.0},
+          vel: {4, 1.0, 0.5}
         }
       ]
     }
@@ -72,15 +78,12 @@ defmodule NBodyProblemSimulation.Simulation do
     end)
   end
 
-  # Helper: vector addition for 3D vectors.
   defp add_vectors({x1, y1, z1}, {x2, y2, z2}),
     do: {x1 + x2, y1 + y2, z1 + z2}
 
-  # Helper: vector subtraction for 3D vectors.
   defp subtract_vectors({x1, y1, z1}, {x2, y2, z2}),
     do: {x1 - x2, y1 - y2, z1 - z2}
 
-  # Helper: multiply a 3D vector by a scalar.
   defp scalar_mult({x, y, z}, s),
     do: {x * s, y * s, z * s}
 end

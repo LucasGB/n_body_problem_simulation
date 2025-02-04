@@ -1,23 +1,4 @@
-// If you want to use Phoenix channels, run `mix help phx.gen.channel`
-// to get started and then uncomment the line below.
-// import "./user_socket.js"
-
-// You can include dependencies in two ways.
-//
-// The simplest option is to put them in assets/vendor and
-// import them using relative paths:
-//
-//     import "../vendor/some-package.js"
-//
-// Alternatively, you can `npm install some-package --prefix assets` and import
-// them using a path starting with the package name:
-//
-//     import "some-package"
-//
-
-// Include phoenix_html to handle method=PUT/DELETE in forms and buttons.
 import "phoenix_html"
-// Establish Phoenix Socket and LiveView configuration.
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
@@ -41,57 +22,201 @@ Hooks.ThreeDHook = {
     this.renderer = new THREE.WebGLRenderer({ canvas });
     this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
 
-    // Create a scene and a camera.
     this.scene = new THREE.Scene();
+
+
+    this.centroid = new THREE.Vector3(0, 0, 0);
+    this.cameraOffset = new THREE.Vector3(0, 0, 500);
     this.camera = new THREE.PerspectiveCamera(
       75,
       canvas.clientWidth / canvas.clientHeight,
       0.1,
       1000
     );
-    // Position the camera so that the scene is visible.
     this.camera.position.z = 500;
 
-    // Add a light to the scene.
-    const light = new THREE.PointLight(0xffffff, 1);
-    light.position.set(0, 0, 500);
-    this.scene.add(light);
+    // const light = new THREE.PointLight(0xffffff, 1);
+    // light.position.set(0, 0, 500);
+    // this.scene.add(light);
 
-    // Create a dictionary to hold our sphere meshes.
     this.sphereMeshes = {};
+    this.traces = {};
+
+    // Track mouse for rotation
+    this.isRotating = false;
+    this.lastMouseX = 0;
+    this.lastMouseY = 0;
+    this.rotationAngleX = 0;
+    this.rotationAngleY = 0;
+
+    canvas.addEventListener("mousedown", (event) => this.onMouseDown(event));
+    canvas.addEventListener("mouseup", (event) => this.onMouseUp(event));
+    canvas.addEventListener("mousemove", (event) => this.onMouseMove(event));
 
     // Read initial simulation state from the data attribute.
     const bodies = JSON.parse(this.el.dataset.simulation);
+
     bodies.forEach(body => {
-      const geometry = new THREE.SphereGeometry(5, 32, 32);
-      const material = new THREE.MeshPhongMaterial({ color: 0x0077ff });
+      const geometry = new THREE.SphereGeometry(15, 6, 4);
+      // const material = new THREE.MeshPhongMaterial({ color: body.color });
+      const material = new THREE.MeshBasicMaterial({ color: body.color });
       const sphere = new THREE.Mesh(geometry, material);
-      // Adjust coordinates as needed (here we center around 0,0,0)
-      sphere.position.set(body.pos[0] - 250, body.pos[1] - 250, body.pos[2] - 250);
+      // Adjust?
+      sphere.position.set(body.pos[0], body.pos[1], body.pos[2]);
       this.scene.add(sphere);
+
+      // Add espheres and traces
       this.sphereMeshes[body.id] = sphere;
+      this.traces[body.id] = {
+        positions: [],
+        line: new THREE.Line(
+          new THREE.BufferGeometry(),
+          new THREE.LineBasicMaterial({ color: body.color })
+        )
+      };
+      this.scene.add(this.traces[body.id].line);
     });
 
-    // Start the animation loop.
     this.animate();
   },
+    // When the LiveView updates the simulation state, update the sphere positions and set listeners.
   updated() {
-    // When the LiveView updates the simulation state, update the sphere positions.
+    this.updateSimultationData();
+    this.addButtonListeners();
+  },
+  addButtonListeners() {
+    document.querySelectorAll(".focus-button").forEach(button => {
+      button.addEventListener("click", () => {
+        let bodyId = button.dataset.bodyId;
+        this.focusOnBody(parseInt(bodyId));
+      });
+    });
+  },
+  updateSimultationData() {
     const bodies = JSON.parse(this.el.dataset.simulation);
+    if (!bodies || bodies.length === 0) {
+      console.warn("No simulation data available");
+      return;
+    }
+
+    let totalX = 0, totalY = 0, totalZ = 0, count = 0;
+    let maxDistance = 0;
+
     bodies.forEach(body => {
       if (this.sphereMeshes[body.id]) {
         this.sphereMeshes[body.id].position.set(
-          body.pos[0] - 250,
-          body.pos[1] - 250,
-          body.pos[2] - 250
+          body.pos[0],
+          body.pos[1],
+          body.pos[2]
         );
+
+        // Store past positions for tracing
+        this.traces[body.id].positions.push(new THREE.Vector3(body.pos[0], body.pos[1], body.pos[2]));
+
+        // Limit the last N positions to limit memory usage
+        // if (this.traces[body.id].positions.length > 200) {
+        //   this.traces[body.id].positions.shift();
+        // }
+
+        // Update the trace line
+        let traceGeometry = new THREE.BufferGeometry().setFromPoints(this.traces[body.id].positions);
+        this.traces[body.id].line.geometry.dispose(); // Remove old geometry
+        this.traces[body.id].line.geometry = traceGeometry;
+
+        // Calcular centro de massa para manter a câmera centralizada
+        // Determinar o maior afastamento para ajustar o zoom
+        let distanceFactor = 2;
+        totalX += body.pos[0];
+        totalY += body.pos[1];
+        totalZ += body.pos[2];
+        count++;
+        let distanceFromCenter = Math.sqrt(body.pos[0] ** distanceFactor + body.pos[1] ** distanceFactor + body.pos[2] ** distanceFactor);
+        if (distanceFromCenter > maxDistance) {
+          maxDistance = distanceFromCenter;
+        }
       }
     });
+
+    // Atualizar a posição da câmera para seguir o centro de massa
+    if (count > 0) {
+      // Atualiza apenas o centro da massa, mas não a posição da câmera diretamente
+      this.centroid.set(totalX / count, totalY / count, totalZ / count);
+    }
   },
   animate() {
-    requestAnimationFrame(() => this.animate());
+    requestAnimationFrame(() => this.animate(), 128);
+
+    if (this.isRotating) {
+      let radius = this.camera.position.distanceTo(this.centroid);
+
+      let angleX = this.rotationAngleX * (Math.PI / 180);
+      let angleY = this.rotationAngleY * (Math.PI / 180);
+
+      // Compute new camera position around centroid
+      this.camera.position.x = this.centroid.x + radius * Math.cos(angleX) * Math.cos(angleY);
+      this.camera.position.y = this.centroid.y + radius * Math.sin(angleY);
+      this.camera.position.z = this.centroid.z + radius * Math.sin(angleX) * Math.cos(angleY);
+
+      this.camera.lookAt(this.centroid);
+    }
+
     this.renderer.render(this.scene, this.camera);
+  },
+  onMouseDown(event) {
+    if (event.button === 0) { // LMB
+        this.isRotating = true;
+        this.lastMouseX = event.clientX;
+        this.lastMouseY = event.clientY;
+    }
+  },
+
+  onMouseUp(event) {
+      if (event.button === 0) { // LMB
+          this.isRotating = false;
+      }
+  },
+
+  onMouseMove(event) {
+    if (this.isRotating) {
+      let deltaX = event.clientX - this.lastMouseX;
+      let deltaY = event.clientY - this.lastMouseY;
+
+      this.rotationAngleX += deltaX * 0.2;
+      this.rotationAngleY += deltaY * 0.2;
+
+      this.lastMouseX = event.clientX;
+      this.lastMouseY = event.clientY;
+    }
+  },
+  focusOnBody(bodyId) {
+    if (!this.sphereMeshes[bodyId]) return;
+  
+    const targetPosition = this.sphereMeshes[bodyId].position;
+  
+    // Calculate the new camera position to focus on the object
+    const offset = new THREE.Vector3(0, 0, 150);
+    const newCameraPosition = targetPosition.clone().add(offset);
+  
+    const duration = 1000; // (in milliseconds)
+    const startTime = performance.now();
+    const startCameraPosition = this.camera.position.clone();
+  
+    const animateTransition = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const interpolationFactor = 1; // (0 to 1)
+      const t = Math.min(elapsed / duration, interpolationFactor);
+  
+      this.camera.position.lerpVectors(startCameraPosition, newCameraPosition, t);
+      this.camera.lookAt(targetPosition);
+  
+      if (t < 1) {
+        requestAnimationFrame(animateTransition);
+      }
+    };
+  
+    requestAnimationFrame(animateTransition);
   }
+  
 };
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
@@ -101,17 +226,9 @@ let liveSocket = new LiveSocket("/live", Socket, {
   hooks: Hooks
 })
 
-// Show progress bar on live navigation and form submits
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 
-// connect if there are any LiveViews on the page
 liveSocket.connect()
-
-// expose liveSocket on window for web console debug logs and latency simulation:
-// >> liveSocket.enableDebug()
-// >> liveSocket.enableLatencySim(1000)  // enabled for duration of browser session
-// >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
-

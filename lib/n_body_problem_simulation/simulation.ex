@@ -18,21 +18,28 @@ defmodule NBodyProblemSimulation.Simulation do
           mass: 100.0,
           color: 0x0077ff,
           pos: {250.0, 250.0, 250.0},
-          vel: {2.0, 3.0, -1.0}
+          vel: {4.0, 3.5, -1.0}
         },
         %{
           id: 2,
           mass: 100.0,
           color: 0xff0000,
           pos: {250.0, 200.0, 250.0},
-          vel: {4, 1.0, 0.5}
+          vel: {4.0, 2.0, 1}
         },
         %{
           id: 3,
           mass: 10000.0,
           color: 0x00ff00,
-          pos: {150.0, 200.0, 50.0},
-          vel: {4, 1.0, 0.5}
+          pos: {-150.0, 200.0, 50.0},
+          vel: {4.0, 1.0, 1.5}
+        },
+        %{
+          id: 4,
+          mass: 5000.0,
+          color: 0x00ffff,
+          pos: {150.25, 0.5, 60.89},
+          vel: {5.0, 5.0, 2}
         }
       ]
     }

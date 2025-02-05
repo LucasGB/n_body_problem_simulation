@@ -5,7 +5,7 @@ defmodule NBodyProblemSimulationWeb.SimulationLive do
   alias NBodyProblemSimulation.Simulation
 
   @tick_interval 50  # milliseconds between ticks
-  @dt 0.5           # simulation time step
+  @dt 0.05           # simulation time step
 
   @impl true
   @spec mount(any(), any(), Phoenix.LiveView.Socket.t()) :: {:ok, any()}

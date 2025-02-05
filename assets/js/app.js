@@ -5,15 +5,11 @@ import topbar from "../vendor/topbar"
 
 import * as THREE from "../vendor/three.min.js";
 // import * as THREE from "three";
-
-console.log("app.js loaded");
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 let Hooks = {};
-
 Hooks.ThreeDHook = {
   mounted() {
-    console.log("ThreeDHook mounted", this.el);
-    // Initialize three.js using the canvas element.
     const canvas = this.el.querySelector("#three-canvas");
     if (!canvas) {
       console.error("Canvas element not found!");
@@ -24,48 +20,63 @@ Hooks.ThreeDHook = {
 
     this.scene = new THREE.Scene();
 
-
     this.centroid = new THREE.Vector3(0, 0, 0);
-    this.cameraOffset = new THREE.Vector3(0, 0, 500);
     this.camera = new THREE.PerspectiveCamera(
       75,
       canvas.clientWidth / canvas.clientHeight,
       0.1,
-      1000
+      1000000
     );
-    this.camera.position.z = 500;
+    this.camera.position.set(0, 0, 50);
 
-    // const light = new THREE.PointLight(0xffffff, 1);
-    // light.position.set(0, 0, 500);
-    // this.scene.add(light);
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+    this.controls.enablePan = true;
+    this.controls.enableRotate = true;
+    this.controls.enableZoom = true;
+    this.controls.dampingFactor = 0.05;
+    this.controls.screenSpacePanning = false;
+    this.controls.minDistance = 50;
+    this.controls.maxDistance = 20000;
+    this.controls.coupleCenters = false;
+    this.controls.keys = {
+      LEFT: 'KeyA',
+      RIGHT: 'KeyD',
+      UP: 'KeyW',
+      BOTTOM: 'KeyS'
+    }
+    this.controls.keyPanSpeed = 20;
+    this.controls.listenToKeyEvents(window);
+
+    this.userInteracting = false;
+    this.autoAdjustTimeout = null;
+
+    this.controls.addEventListener('start', () => {
+      this.userInteracting = true;
+      if (this.autoAdjustTimeout) clearTimeout(this.autoAdjustTimeout);
+    });
+    this.controls.addEventListener('end', () => {
+      if (this.autoAdjustTimeout) clearTimeout(this.autoAdjustTimeout);
+      this.autoAdjustTimeout = setTimeout(() => {
+        this.userInteracting = false;
+      }, 2000);
+    });
 
     this.sphereMeshes = {};
     this.traces = {};
 
-    // Track mouse for rotation
-    this.isRotating = false;
-    this.lastMouseX = 0;
-    this.lastMouseY = 0;
-    this.rotationAngleX = 0;
-    this.rotationAngleY = 0;
-
-    canvas.addEventListener("mousedown", (event) => this.onMouseDown(event));
-    canvas.addEventListener("mouseup", (event) => this.onMouseUp(event));
-    canvas.addEventListener("mousemove", (event) => this.onMouseMove(event));
-
-    // Read initial simulation state from the data attribute.
     const bodies = JSON.parse(this.el.dataset.simulation);
-
+    this.g = new THREE.Group();
+    this.scene.add(this.g);
     bodies.forEach(body => {
-      const geometry = new THREE.SphereGeometry(15, 6, 4);
+      const geometry = new THREE.SphereGeometry(3, 6, 4);
       // const material = new THREE.MeshPhongMaterial({ color: body.color });
       const material = new THREE.MeshBasicMaterial({ color: body.color });
       const sphere = new THREE.Mesh(geometry, material);
-      // Adjust?
       sphere.position.set(body.pos[0], body.pos[1], body.pos[2]);
-      this.scene.add(sphere);
+      this.g.add(sphere);
 
-      // Add espheres and traces
+      // Armazena as referências das esferas e suas trilhas
       this.sphereMeshes[body.id] = sphere;
       this.traces[body.id] = {
         positions: [],
@@ -76,14 +87,40 @@ Hooks.ThreeDHook = {
       };
       this.scene.add(this.traces[body.id].line);
     });
-
+    this.addGridHelper();
     this.animate();
   },
-    // When the LiveView updates the simulation state, update the sphere positions and set listeners.
+
+  addGridHelper() {
+    var gridHelper = new THREE.GridHelper(400, 40, 0x0000ff, 0x808080);
+    gridHelper.position.y = 0;
+    gridHelper.position.x = 0;
+    this.scene.add(gridHelper);
+
+    let bbox = new THREE.Box3().setFromObject(this.g);
+    let helper = new THREE.Box3Helper(bbox, new THREE.Color(0, 255, 0));
+    this.scene.add(helper);
+
+    let center = new THREE.Vector3();
+    bbox.getCenter(center);
+
+    let bsphere = bbox.getBoundingSphere(new THREE.Sphere(center));
+    let m = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      opacity: 0.3,
+      transparent: true
+    });
+    var geometry = new THREE.SphereGeometry(bsphere.radius, 32, 32);
+    let sMesh = new THREE.Mesh(geometry, m);
+    this.scene.add(sMesh);
+    sMesh.position.copy(center);
+  },
+
   updated() {
     this.updateSimultationData();
     this.addButtonListeners();
   },
+
   addButtonListeners() {
     document.querySelectorAll(".focus-button").forEach(button => {
       button.addEventListener("click", () => {
@@ -92,6 +129,7 @@ Hooks.ThreeDHook = {
       });
     });
   },
+
   updateSimultationData() {
     const bodies = JSON.parse(this.el.dataset.simulation);
     if (!bodies || bodies.length === 0) {
@@ -99,112 +137,75 @@ Hooks.ThreeDHook = {
       return;
     }
 
-    let totalX = 0, totalY = 0, totalZ = 0, count = 0;
-    let maxDistance = 0;
-
     bodies.forEach(body => {
       if (this.sphereMeshes[body.id]) {
-        this.sphereMeshes[body.id].position.set(
-          body.pos[0],
-          body.pos[1],
-          body.pos[2]
-        );
-
-        // Store past positions for tracing
-        this.traces[body.id].positions.push(new THREE.Vector3(body.pos[0], body.pos[1], body.pos[2]));
-
-        // Limit the last N positions to limit memory usage
-        // if (this.traces[body.id].positions.length > 200) {
-        //   this.traces[body.id].positions.shift();
-        // }
-
-        // Update the trace line
-        let traceGeometry = new THREE.BufferGeometry().setFromPoints(this.traces[body.id].positions);
-        this.traces[body.id].line.geometry.dispose(); // Remove old geometry
-        this.traces[body.id].line.geometry = traceGeometry;
-
-        // Calcular centro de massa para manter a câmera centralizada
-        // Determinar o maior afastamento para ajustar o zoom
-        let distanceFactor = 2;
-        totalX += body.pos[0];
-        totalY += body.pos[1];
-        totalZ += body.pos[2];
-        count++;
-        let distanceFromCenter = Math.sqrt(body.pos[0] ** distanceFactor + body.pos[1] ** distanceFactor + body.pos[2] ** distanceFactor);
-        if (distanceFromCenter > maxDistance) {
-          maxDistance = distanceFromCenter;
-        }
+        let pos = new THREE.Vector3(body.pos[0], body.pos[1], body.pos[2]);
+        this.sphereMeshes[body.id].position.copy(pos);
+        
+        // Armazena posições passadas para criar a trilha
+        let trace = this.traces[body.id];
+        trace.positions.push(new THREE.Vector3(body.pos[0], body.pos[1], body.pos[2]));
+        trace.line.geometry.setFromPoints(trace.positions);
       }
     });
 
-    // Atualizar a posição da câmera para seguir o centro de massa
-    if (count > 0) {
-      // Atualiza apenas o centro da massa, mas não a posição da câmera diretamente
-      this.centroid.set(totalX / count, totalY / count, totalZ / count);
+    let bbox = new THREE.Box3().setFromObject(this.g);
+    const center = new THREE.Vector3();
+    bbox.getCenter(center);
+    this.centroid.copy(center);
+    this.controls.target.copy(this.centroid);
+    let bsphere = bbox.getBoundingSphere(new THREE.Sphere(center));
+
+    if (!this.userInteracting) {
+      this.adjustCameraZoom(bsphere.radius);
     }
   },
+
+  adjustCameraZoom(radius) {
+    let zoomFactor = 2.0; 
+    let newCameraDistance = radius * zoomFactor;
+    newCameraDistance = Math.max(newCameraDistance, 50);
+
+    let duration = 500; // Tempo da transição em ms
+    let startTime = performance.now();
+    let startCameraPosition = this.camera.position.clone();
+    let targetCameraPosition = this.centroid.clone().add(new THREE.Vector3(0, 0, newCameraDistance));
+
+    const animateZoom = (currentTime) => {
+      let elapsed = currentTime - startTime;
+      let t = Math.min(elapsed / duration, 1); // Normaliza para [0, 1]
+
+      this.camera.position.lerpVectors(startCameraPosition, targetCameraPosition, t);
+
+      if (t < 1) {
+        requestAnimationFrame(animateZoom);
+      }
+    };
+
+    requestAnimationFrame(animateZoom);
+  },
+
   animate() {
-    requestAnimationFrame(() => this.animate(), 128);
-
-    if (this.isRotating) {
-      let radius = this.camera.position.distanceTo(this.centroid);
-
-      let angleX = this.rotationAngleX * (Math.PI / 180);
-      let angleY = this.rotationAngleY * (Math.PI / 180);
-
-      // Compute new camera position around centroid
-      this.camera.position.x = this.centroid.x + radius * Math.cos(angleX) * Math.cos(angleY);
-      this.camera.position.y = this.centroid.y + radius * Math.sin(angleY);
-      this.camera.position.z = this.centroid.z + radius * Math.sin(angleX) * Math.cos(angleY);
-
-      this.camera.lookAt(this.centroid);
-    }
-
+    requestAnimationFrame(this.animate.bind(this));
+    this.controls.update();
     this.renderer.render(this.scene, this.camera);
   },
-  onMouseDown(event) {
-    if (event.button === 0) { // LMB
-        this.isRotating = true;
-        this.lastMouseX = event.clientX;
-        this.lastMouseY = event.clientY;
-    }
-  },
 
-  onMouseUp(event) {
-      if (event.button === 0) { // LMB
-          this.isRotating = false;
-      }
-  },
-
-  onMouseMove(event) {
-    if (this.isRotating) {
-      let deltaX = event.clientX - this.lastMouseX;
-      let deltaY = event.clientY - this.lastMouseY;
-
-      this.rotationAngleX += deltaX * 0.2;
-      this.rotationAngleY += deltaY * 0.2;
-
-      this.lastMouseX = event.clientX;
-      this.lastMouseY = event.clientY;
-    }
-  },
   focusOnBody(bodyId) {
     if (!this.sphereMeshes[bodyId]) return;
   
     const targetPosition = this.sphereMeshes[bodyId].position;
   
-    // Calculate the new camera position to focus on the object
     const offset = new THREE.Vector3(0, 0, 150);
     const newCameraPosition = targetPosition.clone().add(offset);
   
-    const duration = 1000; // (in milliseconds)
+    const duration = 1000; // em ms
     const startTime = performance.now();
     const startCameraPosition = this.camera.position.clone();
   
     const animateTransition = (currentTime) => {
       const elapsed = currentTime - startTime;
-      const interpolationFactor = 1; // (0 to 1)
-      const t = Math.min(elapsed / duration, interpolationFactor);
+      const t = Math.min(elapsed / duration, 1);
   
       this.camera.position.lerpVectors(startCameraPosition, newCameraPosition, t);
       this.camera.lookAt(targetPosition);
@@ -216,7 +217,6 @@ Hooks.ThreeDHook = {
   
     requestAnimationFrame(animateTransition);
   }
-  
 };
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")

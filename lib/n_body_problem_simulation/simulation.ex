@@ -1,6 +1,6 @@
 defmodule NBodyProblemSimulation.Simulation do
   @moduledoc """
-  A simple two‑body (extendable to more bodies) simulation in 3D using Euler‑Cromer integration.
+  A simple N‑body simulation in 3D using Euler‑Cromer integration.
   """
 
   @g 1.0  # Gravitational constant (set to 1 for simplicity)
@@ -8,38 +8,38 @@ defmodule NBodyProblemSimulation.Simulation do
   defstruct bodies: []
 
   @doc """
-  Returns the initial simulation state with two bodies.
+  Returns the initial simulation state with N bodies.
   """
   def initial_state do
     %NBodyProblemSimulation.Simulation{
       bodies: [
         %{
           id: 1,
-          mass: 100.0,
+          mass: 250.0,
           color: 0x0077ff,
-          pos: {250.0, 250.0, 250.0},
-          vel: {4.0, 3.5, -1.0}
+          pos: {15.50, 10, 11.9},
+          vel: {2.0, 1.5, -0.5}
         },
         %{
           id: 2,
-          mass: 100.0,
+          mass: 150.0,
           color: 0xff0000,
-          pos: {250.0, 200.0, 250.0},
-          vel: {4.0, 2.0, 1}
+          pos: {10.0, -25, 15},
+          vel: {-2.0, -2.0, 1}
         },
         %{
           id: 3,
-          mass: 10000.0,
+          mass: 100.0,
           color: 0x00ff00,
-          pos: {-150.0, 200.0, 50.0},
-          vel: {4.0, 1.0, 1.5}
+          pos: {-23, -18.0, 8.0},
+          vel: {2.0, -1.0, 0.75}
         },
         %{
           id: 4,
-          mass: 5000.0,
+          mass: 170.0,
           color: 0x00ffff,
-          pos: {150.25, 0.5, 60.89},
-          vel: {5.0, 5.0, 2}
+          pos: {-13, 23, 10},
+          vel: {1.0, -2.0, -0.3}
         }
       ]
     }

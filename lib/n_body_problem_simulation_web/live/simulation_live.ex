@@ -1,31 +1,51 @@
 defmodule NBodyProblemSimulationWeb.SimulationLive do
-  # use Phoenix.LiveView
   use NBodyProblemSimulationWeb, :live_view
 
   alias NBodyProblemSimulation.Simulation
+  alias NBodyProblemSimulation.SimulationServer
 
   @tick_interval 50  # milliseconds between ticks
-  @dt 0.001           # simulation time step
+  @dt 0.001          # simulation time step
 
   @impl true
   @spec mount(any(), any(), Phoenix.LiveView.Socket.t()) :: {:ok, any()}
   def mount(_params, _session, socket) do
-    if connected?(socket), do: :timer.send_interval(@tick_interval, self(), :tick)
+    if connected?(socket), do: :timer.send_interval(@tick_interval, self(), :poll_simulation)
     simulation = Simulation.initial_state()
     {:ok, assign(socket, simulation: simulation)}
   end
 
   @impl true
-  def handle_info(:tick, socket) do
-    simulation = Simulation.update(socket.assigns.simulation, dt: @dt)
+  def handle_info(:poll_simulation, socket) do
+    simulation = SimulationServer.get_state()
     {:noreply, assign(socket, simulation: simulation)}
+  end
+  
+  @impl true
+  def handle_event("change_strategy", %{"strategy" => strategy}, socket) do
+    # Convert string strategy name to module
+    strategy_module = case strategy do
+      "euler_cromer" -> NBodyProblemSimulation.Integration.EulerCromer
+      _ -> NBodyProblemSimulation.Integration.EulerCromer
+    end
+
+    SimulationServer.set_strategy(strategy_module)
+    {:noreply, assign(socket, strategy: strategy_module)}
   end
 
   @impl true
   def render(assigns) do
     ~H"""
       <h1>N-body Problem</h1>
-
+      <div id="select-strategy" phx-update="ignore">
+        <label>Choose Integration Method:</label>
+        <select phx-change="change_strategy">
+          <option value="euler_cromer">Euler-Cromer</option>
+          <option value="velocity_verlet">Velocity Verlet</option>
+          <option value="runge-kutta-4">Runge-Kutta 4</option>
+        </select>
+      </div>
+      
       <div id="simulation" phx-hook="ThreeDHook" data-simulation={Jason.encode!(@simulation.bodies)}>
         <canvas id="three-canvas" phx-update="ignore" style="width: 800px; height: 600px;"></canvas>
       </div>

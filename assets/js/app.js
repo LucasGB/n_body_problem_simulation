@@ -6,6 +6,7 @@ import topbar from "../vendor/topbar"
 import * as THREE from "../vendor/three.min.js";
 // import * as THREE from "three";
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+const AU_SCALE = 20*20;
 
 let Hooks = {};
 Hooks.ThreeDHook = {
@@ -69,11 +70,15 @@ Hooks.ThreeDHook = {
     this.g = new THREE.Group();
     this.scene.add(this.g);
     bodies.forEach(body => {
-      const geometry = new THREE.SphereGeometry(3, 6, 4);
+      const geometry = new THREE.SphereGeometry(body.radius, 6, 4);
       // const material = new THREE.MeshPhongMaterial({ color: body.color });
       const material = new THREE.MeshBasicMaterial({ color: body.color });
       const sphere = new THREE.Mesh(geometry, material);
-      sphere.position.set(body.pos[0], body.pos[1], body.pos[2]);
+      sphere.position.set(
+        body.pos[0] * AU_SCALE,
+        body.pos[1] * AU_SCALE,
+        body.pos[2] * AU_SCALE
+      );
       this.g.add(sphere);
 
       // Armazena as referências das esferas e suas trilhas
@@ -92,14 +97,14 @@ Hooks.ThreeDHook = {
   },
 
   addGridHelper() {
-    var gridHelper = new THREE.GridHelper(400, 40, 0x0000ff, 0x808080);
-    gridHelper.position.y = 0;
-    gridHelper.position.x = 0;
-    this.scene.add(gridHelper);
+    this.gridHelper = new THREE.GridHelper(4000, 40, 0x0000ff, 0x808080);
+    this.gridHelper.position.y = 0;
+    this.gridHelper.position.x = 0;
+    this.scene.add(this.gridHelper);
 
     let bbox = new THREE.Box3().setFromObject(this.g);
     let helper = new THREE.Box3Helper(bbox, new THREE.Color(0, 255, 0));
-    this.scene.add(helper);
+    // this.scene.add(helper);
 
     let center = new THREE.Vector3();
     bbox.getCenter(center);
@@ -116,12 +121,28 @@ Hooks.ThreeDHook = {
     sMesh.position.copy(center);
   },
 
+  showGridLines() {
+    this.gridHelper.visible = !this.gridHelper.visible;
+  },
+
   updated() {
     this.updateSimultationData();
     this.addButtonListeners();
   },
 
   addButtonListeners() {
+    document.querySelectorAll("#adjust-button").forEach(button => {
+      button.addEventListener("click", () => {
+        this.adjustCameraZoom();
+      });
+    });
+
+    document.querySelectorAll("#show-grid-lines").forEach(button => {
+      button.addEventListener("click", () => {
+        this.showGridLines();
+      });
+    });
+
     document.querySelectorAll(".focus-button").forEach(button => {
       button.addEventListener("click", () => {
         let bodyId = button.dataset.bodyId;
@@ -139,16 +160,28 @@ Hooks.ThreeDHook = {
 
     bodies.forEach(body => {
       if (this.sphereMeshes[body.id]) {
-        let pos = new THREE.Vector3(body.pos[0], body.pos[1], body.pos[2]);
+        let pos = new THREE.Vector3(
+          body.pos[0] * AU_SCALE,
+          body.pos[1] * AU_SCALE,
+          body.pos[2] * AU_SCALE
+        );
         this.sphereMeshes[body.id].position.copy(pos);
         
-        // Armazena posições passadas para criar a trilha
-        let trace = this.traces[body.id];
-        trace.positions.push(new THREE.Vector3(body.pos[0], body.pos[1], body.pos[2]));
-        trace.line.geometry.setFromPoints(trace.positions);
+        this.traces[body.id].positions.push(pos);
+        // Limit the last N positions to limit memory usage
+        // if (this.traces[body.id].positions.length > 200) {
+        //   this.traces[body.id].positions.shift();
+        // }
+
+        let traceGeometry = new THREE.BufferGeometry().setFromPoints(this.traces[body.id].positions);
+        this.traces[body.id].line.geometry.dispose();
+        this.traces[body.id].line.geometry = traceGeometry;
+
       }
     });
+  },
 
+  adjustCameraZoom() {
     let bbox = new THREE.Box3().setFromObject(this.g);
     const center = new THREE.Vector3();
     bbox.getCenter(center);
@@ -156,14 +189,8 @@ Hooks.ThreeDHook = {
     this.controls.target.copy(this.centroid);
     let bsphere = bbox.getBoundingSphere(new THREE.Sphere(center));
 
-    if (!this.userInteracting) {
-      this.adjustCameraZoom(bsphere.radius);
-    }
-  },
-
-  adjustCameraZoom(radius) {
     let zoomFactor = 2.0; 
-    let newCameraDistance = radius * zoomFactor;
+    let newCameraDistance = bsphere.radius * zoomFactor;
     newCameraDistance = Math.max(newCameraDistance, 50);
 
     let duration = 500; // Tempo da transição em ms

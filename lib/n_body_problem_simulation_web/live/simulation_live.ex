@@ -20,7 +20,7 @@ defmodule NBodyProblemSimulationWeb.SimulationLive do
     simulation = SimulationServer.get_state()
     {:noreply, assign(socket, simulation: simulation)}
   end
-  
+
   @impl true
   def handle_event("change_strategy", %{"strategy" => strategy}, socket) do
     # Convert string strategy name to module
@@ -46,26 +46,26 @@ defmodule NBodyProblemSimulationWeb.SimulationLive do
           <option value="runge-kutta-4">Runge-Kutta 4</option>
         </select>
       </div>
-      
+
       <div id="simulation" phx-hook="ThreeDHook" data-simulation={Jason.encode!(@simulation.bodies)}>
         <canvas id="three-canvas" phx-update="ignore" style="width: 800px; height: 600px;"></canvas>
       </div>
 
       <div id="ui-container" style="display: flex; flex-direction: row; align-items: flex-start; gap: 10px;">
-        <button 
+        <button
           id="adjust-button"
           style={"background-color: #f12; color: #fff; padding: 10px; border-radius: 5px; width: 120px; text-align: center; cursor: pointer; border: 1px solid white;"}
         >
           Auto Focus
         </button>
-        <button 
+        <button
           id="show-grid-lines"
           style={"background-color: #2f1; color: #fff; padding: 10px; border-radius: 5px; width: 120px; text-align: center; cursor: pointer; border: 1px solid white;"}
         >
           Show Grid
         </button>
         <%= for body <- @simulation.bodies do %>
-          <button 
+          <button
             class="focus-button"
             style={"background-color: ##{Integer.to_string(body.color, 16) |> String.pad_leading(6, "0")}; color: #fff; padding: 10px; border-radius: 5px; width: 120px; text-align: center; cursor: pointer; border: 1px solid white;"}
             data-body-id={body.id}

@@ -15,6 +15,10 @@ defmodule NBodyProblemSimulation.Application do
       {Phoenix.PubSub, name: NBodyProblemSimulation.PubSub},
       # Start the Finch HTTP client for sending emails
       {Finch, name: NBodyProblemSimulation.Finch},
+      NBodyProblemSimulation.SimulationServer.child_spec(
+        {NBodyProblemSimulation.Simulation.initial_state(),
+         NBodyProblemSimulation.Integration.EulerCromer}
+      ),
       # Start a worker by calling: NBodyProblemSimulation.Worker.start_link(arg)
       # {NBodyProblemSimulation.Worker, arg},
       # Start to serve requests, typically the last entry

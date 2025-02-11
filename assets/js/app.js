@@ -4,12 +4,33 @@ import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
 
 import * as THREE from "../vendor/three.min.js";
-// import * as THREE from "three";
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-const AU_SCALE = 20*20;
+const AU_SCALE = 20;
+const AU_SCALE2 = 20;
 
 let Hooks = {};
 Hooks.ThreeDHook = {
+  addButtonListeners() {
+    document.querySelectorAll("#adjust-button").forEach(button => {
+      button.addEventListener("click", () => {
+        this.adjustCameraZoom();
+      });
+    });
+  
+    document.querySelectorAll("#show-grid-lines").forEach(button => {
+      button.addEventListener("click", () => {
+        this.showGridLines();
+      });
+    });
+  
+    document.querySelectorAll(".focus-button").forEach(button => {
+      button.addEventListener("click", () => {
+        let bodyId = button.dataset.bodyId;
+        this.focusOnBody(parseInt(bodyId));
+      });
+    });
+  },
+  
   mounted() {
     const canvas = this.el.querySelector("#three-canvas");
     if (!canvas) {
@@ -19,16 +40,10 @@ Hooks.ThreeDHook = {
     this.renderer = new THREE.WebGLRenderer({ canvas });
     this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
 
+    // Scene setup
     this.scene = new THREE.Scene();
-
-    this.centroid = new THREE.Vector3(0, 0, 0);
-    this.camera = new THREE.PerspectiveCamera(
-      75,
-      canvas.clientWidth / canvas.clientHeight,
-      0.1,
-      1000000
-    );
-    this.camera.position.set(0, 0, 50);
+    this.camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+    this.camera.position.set(0, 0, 0);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
@@ -37,7 +52,7 @@ Hooks.ThreeDHook = {
     this.controls.enableZoom = true;
     this.controls.dampingFactor = 0.05;
     this.controls.screenSpacePanning = false;
-    this.controls.minDistance = 50;
+    this.controls.minDistance = 5;
     this.controls.maxDistance = 20000;
     this.controls.coupleCenters = false;
     this.controls.keys = {
@@ -52,133 +67,119 @@ Hooks.ThreeDHook = {
     this.userInteracting = false;
     this.autoAdjustTimeout = null;
 
-    this.controls.addEventListener('start', () => {
-      this.userInteracting = true;
-      if (this.autoAdjustTimeout) clearTimeout(this.autoAdjustTimeout);
-    });
-    this.controls.addEventListener('end', () => {
-      if (this.autoAdjustTimeout) clearTimeout(this.autoAdjustTimeout);
-      this.autoAdjustTimeout = setTimeout(() => {
-        this.userInteracting = false;
-      }, 2000);
-    });
+    this.handleEvent("grid_update", (payload) => {
+        this.updateGridGeometry(payload.grid)
+    })
 
     this.sphereMeshes = {};
     this.traces = {};
 
-    const bodies = JSON.parse(this.el.dataset.simulation);
-    this.g = new THREE.Group();
-    this.scene.add(this.g);
+    // Render celestial bodies
+    const bodies = JSON.parse(this.el.dataset.simulation)
+    this.group = new THREE.Group();
+    this.scene.add(this.group);
     bodies.forEach(body => {
       const geometry = new THREE.SphereGeometry(body.radius, 6, 4);
-      // const material = new THREE.MeshPhongMaterial({ color: body.color });
       const material = new THREE.MeshBasicMaterial({ color: body.color });
       const sphere = new THREE.Mesh(geometry, material);
       sphere.position.set(
         body.pos[0] * AU_SCALE,
         body.pos[1] * AU_SCALE,
-        body.pos[2] * AU_SCALE
+        body.pos[2] * AU_SCALE,
       );
-      this.g.add(sphere);
-
-      // Armazena as referências das esferas e suas trilhas
+      this.group.add(sphere);
+    
       this.sphereMeshes[body.id] = sphere;
       this.traces[body.id] = {
         positions: [],
         line: new THREE.Line(
-          new THREE.BufferGeometry(),
-          new THREE.LineBasicMaterial({ color: body.color })
+            new THREE.BufferGeometry(),
+            new THREE.LineBasicMaterial({ color: body.color })
         )
       };
       this.scene.add(this.traces[body.id].line);
     });
-    this.addGridHelper();
+    
     this.animate();
   },
 
-  addGridHelper() {
-    this.gridHelper = new THREE.GridHelper(4000, 40, 0x0000ff, 0x808080);
-    this.gridHelper.position.y = 0;
-    this.gridHelper.position.x = 0;
-    this.scene.add(this.gridHelper);
-
-    let bbox = new THREE.Box3().setFromObject(this.g);
-    let helper = new THREE.Box3Helper(bbox, new THREE.Color(0, 255, 0));
-    // this.scene.add(helper);
-
-    let center = new THREE.Vector3();
-    bbox.getCenter(center);
-
-    let bsphere = bbox.getBoundingSphere(new THREE.Sphere(center));
-    let m = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      opacity: 0.3,
-      transparent: true
-    });
-    var geometry = new THREE.SphereGeometry(bsphere.radius, 32, 32);
-    let sMesh = new THREE.Mesh(geometry, m);
-    this.scene.add(sMesh);
-    sMesh.position.copy(center);
-  },
-
-  showGridLines() {
-    this.gridHelper.visible = !this.gridHelper.visible;
-  },
-
   updated() {
-    this.updateSimultationData();
-    this.addButtonListeners();
+      this.updateSimultationData();
+      this.addButtonListeners();
   },
 
-  addButtonListeners() {
-    document.querySelectorAll("#adjust-button").forEach(button => {
-      button.addEventListener("click", () => {
-        this.adjustCameraZoom();
+  updateGridGeometry(gridData) {
+      if (this.gridMesh) {
+        this.scene.remove(this.gridMesh);
+        this.gridMesh.geometry.dispose();
+        this.gridMesh.material.dispose();
+        this.gridMesh = null;
+      }
+  
+      const geometry = new THREE.BufferGeometry();
+      const vertices = [];
+  
+      gridData.forEach(([x, y, z]) => {
+        if (!Array.isArray([x, y, z]) || [x, y, z].length !== 3) {
+          console.error(`Invalid point at index ${index}:`, [x, y, z]);
+        } else if ([x, y, z].some(isNaN)) {
+          console.error(`NaN detected in point ${index}:`, [x, y, z]);
+        } else {
+          // vertices.push([x * AU_SCALE, y  * AU_SCALE, z  * AU_SCALE][0], [x * AU_SCALE, y  * AU_SCALE, z  * AU_SCALE][1], [x * AU_SCALE, y  * AU_SCALE, z  * AU_SCALE][2]);
+          // vertices.push([x, y, z][0] * AU_SCALE, [x, y, z][1] * AU_SCALE, [x, y, z][2] * AU_SCALE);
+          vertices.push([x, y, z][0] * AU_SCALE2, [x, y, z][1] * AU_SCALE2, [x, y, z][2] * AU_SCALE2);
+          // vertices.push([x, y, z][0], [x, y, z][1], [x, y, z][2]);
+        }
       });
-    });
+      console.log("Processed Vertices:", vertices);
+      
+      const cleanVertices = vertices.filter(n => !isNaN(n));  // Remove NaNs
+      
+      if (cleanVertices.length % 3 !== 0) {
+        console.error("Data is missing. The final vertex list is not divisible by 3.");
+      }
+      
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(cleanVertices, 3));
 
-    document.querySelectorAll("#show-grid-lines").forEach(button => {
-      button.addEventListener("click", () => {
-        this.showGridLines();
-      });
-    });
-
-    document.querySelectorAll(".focus-button").forEach(button => {
-      button.addEventListener("click", () => {
-        let bodyId = button.dataset.bodyId;
-        this.focusOnBody(parseInt(bodyId));
-      });
-    });
+      const material = new THREE.PointsMaterial({ size: 0.2, color: 0x808080 });
+      this.gridMesh = new THREE.Points(geometry, material);
+  
+      this.scene.add(this.gridMesh);
   },
 
   updateSimultationData() {
-    const bodies = JSON.parse(this.el.dataset.simulation);
-    if (!bodies || bodies.length === 0) {
-      console.warn("No simulation data available");
-      return;
-    }
-
-    bodies.forEach(body => {
-      if (this.sphereMeshes[body.id]) {
-        let pos = new THREE.Vector3(
-          body.pos[0] * AU_SCALE,
-          body.pos[1] * AU_SCALE,
-          body.pos[2] * AU_SCALE
-        );
-        this.sphereMeshes[body.id].position.copy(pos);
-        
-        this.traces[body.id].positions.push(pos);
-        // Limit the last N positions to limit memory usage
-        // if (this.traces[body.id].positions.length > 200) {
-        //   this.traces[body.id].positions.shift();
-        // }
-
-        let traceGeometry = new THREE.BufferGeometry().setFromPoints(this.traces[body.id].positions);
-        this.traces[body.id].line.geometry.dispose();
-        this.traces[body.id].line.geometry = traceGeometry;
-
+      const bodies = JSON.parse(this.el.dataset.simulation);
+      if (!bodies || bodies.length === 0) {
+        console.warn("No simulation data available");
+        return;
       }
-    });
+  
+      bodies.forEach(body => {
+        if (this.sphereMeshes[body.id]) {
+          let pos = new THREE.Vector3(
+            body.pos[0] * AU_SCALE,
+            body.pos[1] * AU_SCALE,
+            body.pos[2] * AU_SCALE
+          );
+          this.sphereMeshes[body.id].position.copy(pos);
+          
+          this.traces[body.id].positions.push(pos);
+          // Limit the last N positions to limit memory usage
+          if (this.traces[body.id].positions.length > 400) {
+            this.traces[body.id].positions.shift();
+          }
+  
+          let traceGeometry = new THREE.BufferGeometry().setFromPoints(this.traces[body.id].positions);
+          this.traces[body.id].line.geometry.dispose();
+          this.traces[body.id].line.geometry = traceGeometry;
+        }
+      });
+  },
+
+  animate() {
+      requestAnimationFrame(this.animate.bind(this));
+      this.controls.update();
+      this.renderer.render(this.scene, this.camera);
   },
 
   adjustCameraZoom() {
@@ -210,12 +211,6 @@ Hooks.ThreeDHook = {
     };
 
     requestAnimationFrame(animateZoom);
-  },
-
-  animate() {
-    requestAnimationFrame(this.animate.bind(this));
-    this.controls.update();
-    this.renderer.render(this.scene, this.camera);
   },
 
   focusOnBody(bodyId) {

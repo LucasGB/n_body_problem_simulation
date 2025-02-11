@@ -7,8 +7,9 @@ defmodule NBodyProblemSimulation.SimulationServer do
   use GenServer
   alias NBodyProblemSimulation.Simulation
 
+  @pubsub_topic "simulation:update"
   @tick_interval 50   # milliseconds between updates
-  @dt 0.001
+  @dt 0.001           # simulation time step
 
   #  child spec efinition so this module can be started by a supervisor
   def child_spec(init_arg) do
@@ -43,6 +44,11 @@ defmodule NBodyProblemSimulation.SimulationServer do
   @impl true
   def handle_info(:tick, %{simulation: simulation, strategy: strategy} = state) do
     new_simulation = Simulation.update(simulation, dt: @dt, strategy: strategy)
+    
+    if new_simulation != simulation do
+      Phoenix.PubSub.broadcast(NBodyProblemSimulation.PubSub, @pubsub_topic, {:simulation_update, new_simulation})
+    end
+    
     {:noreply, %{state | simulation: new_simulation}}
   end
 

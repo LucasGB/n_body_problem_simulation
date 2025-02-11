@@ -4,26 +4,35 @@ defmodule NBodyProblemSimulationWeb.SimulationLive do
   alias NBodyProblemSimulation.Simulation
   alias NBodyProblemSimulation.SimulationServer
 
+  @simulation_update_topic "simulation:update"
+  @grid_update "grid_update"
   @tick_interval 50  # milliseconds between ticks
   @dt 0.001          # simulation time step
 
   @impl true
   @spec mount(any(), any(), Phoenix.LiveView.Socket.t()) :: {:ok, any()}
   def mount(_params, _session, socket) do
-    if connected?(socket), do: :timer.send_interval(@tick_interval, self(), :poll_simulation)
+    if connected?(socket), do: Phoenix.PubSub.subscribe(NBodyProblemSimulation.PubSub, @simulation_update_topic)
     simulation = Simulation.initial_state()
     {:ok, assign(socket, simulation: simulation)}
   end
 
   @impl true
-  def handle_info(:poll_simulation, socket) do
-    simulation = SimulationServer.get_state()
-    {:noreply, assign(socket, simulation: simulation)}
+  @spec handle_info({:simulation_update, any()}, map()) :: {:noreply, map()}
+  def handle_info({:simulation_update, new_simulation}, socket) do
+    socket =
+      socket
+      |> assign(:simulation, new_simulation)
+
+    grid_data = new_simulation.grid
+    socket = Phoenix.LiveView.push_event(socket, @grid_update, %{grid: grid_data})
+
+    {:noreply, socket}
   end
 
   @impl true
+  @spec handle_event(<<_::120>>, map(), any()) :: {:noreply, any()}
   def handle_event("change_strategy", %{"strategy" => strategy}, socket) do
-    # Convert string strategy name to module
     strategy_module = case strategy do
       "euler_cromer" -> NBodyProblemSimulation.Integration.EulerCromer
       "velocity_verlet" -> NBodyProblemSimulation.Integration.VelocityVerlet

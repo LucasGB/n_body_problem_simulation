@@ -5,8 +5,9 @@ import topbar from "../vendor/topbar"
 
 import * as THREE from "../vendor/three.min.js";
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-const AU_SCALE = 20;
-const AU_SCALE2 = 20;
+const AU_SCALE = 107;
+const AU_SCALE2 = 107;
+const au = 1 * 107;
 
 let Hooks = {};
 Hooks.ThreeDHook = {
@@ -53,7 +54,7 @@ Hooks.ThreeDHook = {
     this.controls.dampingFactor = 0.05;
     this.controls.screenSpacePanning = false;
     this.controls.minDistance = 5;
-    this.controls.maxDistance = 20000;
+    this.controls.maxDistance = 40000;
     this.controls.coupleCenters = false;
     this.controls.keys = {
       LEFT: 'KeyA',
@@ -128,10 +129,10 @@ Hooks.ThreeDHook = {
           // vertices.push([x * AU_SCALE, y  * AU_SCALE, z  * AU_SCALE][0], [x * AU_SCALE, y  * AU_SCALE, z  * AU_SCALE][1], [x * AU_SCALE, y  * AU_SCALE, z  * AU_SCALE][2]);
           // vertices.push([x, y, z][0] * AU_SCALE, [x, y, z][1] * AU_SCALE, [x, y, z][2] * AU_SCALE);
           vertices.push([x, y, z][0] * AU_SCALE2, [x, y, z][1] * AU_SCALE2, [x, y, z][2] * AU_SCALE2);
-          // vertices.push([x, y, z][0], [x, y, z][1], [x, y, z][2]);
+          //vertices.push([x, y, z][0], [x, y, z][1], [x, y, z][2]);
         }
       });
-      console.log("Processed Vertices:", vertices);
+      console.log("Processed Vertices:", vertices.length);
       
       const cleanVertices = vertices.filter(n => !isNaN(n));  // Remove NaNs
       
@@ -162,7 +163,7 @@ Hooks.ThreeDHook = {
             body.pos[2] * AU_SCALE
           );
           this.sphereMeshes[body.id].position.copy(pos);
-          
+          console.log(`${body.id} - Position: ${pos}:`, body.id, pos);
           this.traces[body.id].positions.push(pos);
           // Limit the last N positions to limit memory usage
           if (this.traces[body.id].positions.length > 400) {

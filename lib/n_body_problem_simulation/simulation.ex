@@ -4,34 +4,33 @@ defmodule NBodyProblemSimulation.Simulation do
   """
   alias NBodyProblemSimulation.GravityField
   alias NBodyProblemSimulation.Simulation
-  #@g (4 * :math.pi() * :math.pi())/16  # Gravitational constant compatible with 1 Solar Mass + 1 AU
-  @g 1
+  #@g (4 * :math.pi() * :math.pi())  # Gravitational constant compatible with 1 Solar Mass + 1 AU
+  @g 6.67430*10.0e-11
   
   @solar_mass 1.0
-  @g_scale 0.5
+  @solar_radii 20.0
   
   # Experimental parameters. Remove and set to function variables?
-  @padding 3.0
-  @grid_step 0.5
+  @padding 1.0
+  @grid_segments_per_axis 4
   defstruct bodies: [],
             grid: nil,
             time: 0.0
 
   @spec initial_state() :: %NBodyProblemSimulation.Simulation{
-          bodies: [
-            %{
-              color: 255 | 11_184_810 | 16_752_762 | 16_776_960,
-              id: 1 | 2 | 3 | 4,
-              mass: float(),
-              pos: {any(), any(), any()},
-              radius: 1 | 3 | 4,
-              vel: {any(), any(), any()}
-            },
-            ...
-          ],
-          grid: nil,
-          time: float()
-        }
+    bodies: [
+      %{
+        color: 255 | 11_184_810 | 16_752_762 | 16_776_960,
+        id: 1 | 2 | 3 | 4,
+        mass: float(),
+        pos: {any(), any(), any()},
+        radius: 1 | 3 | 4,
+        vel: {any(), any(), any()}
+      },
+    ],
+    grid: nil,
+    time: float()
+  }
   @doc """
   Returns the initial simulation state with N bodies.
   """
@@ -68,11 +67,9 @@ defmodule NBodyProblemSimulation.Simulation do
       end)
       warp_grid(grid_points, bodies)
     else
-      grid_lines = create_lines_from_bounding_box(bodies)
-      grid_points = Enum.flat_map(grid_lines, fn %{start: start_point, end: end_point} ->
-        [start_point, end_point]
-      end)
-      warp_grid(grid_points, bodies)
+      p = existing_grid
+        |> Enum.map(&Tuple.to_list/1)
+      warp_grid(p, bodies)
     end
   end
 
@@ -82,18 +79,21 @@ defmodule NBodyProblemSimulation.Simulation do
   """
   def create_lines_from_bounding_box(bodies) do
     {min_x, max_x, min_y, max_y, min_z, max_z} = bounding_box(bodies)
+    grid_step_x = (abs(max_x) + abs(min_x)) / @grid_segments_per_axis 
+    grid_step_y = (abs(max_y) + abs(min_y)) / @grid_segments_per_axis 
+    grid_step_z = (abs(max_z) + abs(min_z)) / @grid_segments_per_axis 
 
     lines =
-      for x <- float_range(min_x, max_x, @grid_step),
-          y <- float_range(min_y, max_y, @grid_step),
-          z <- float_range(min_z, max_z, @grid_step),
+      for x <- float_range(min_x, max_x, grid_step_x),
+          y <- float_range(min_y, max_y, grid_step_y),
+          z <- float_range(min_z, max_z, grid_step_z),
           reduce: [] do
         acc ->
           new_lines =
             []
-            |> (fn acc -> if x + @grid_step <= max_x, do: [%{start: [x, y, z], end: [x + @grid_step, y, z]} | acc], else: acc end).()
-            |> (fn acc -> if y + @grid_step <= max_y, do: [%{start: [x, y, z], end: [x, y + @grid_step, z]} | acc], else: acc end).()
-            |> (fn acc -> if z + @grid_step <= max_z, do: [%{start: [x, y, z], end: [x, y, z + @grid_step]} | acc], else: acc end).()
+            |> (fn acc -> if x + grid_step_x <= max_x, do: [%{start: [x, y, z], end: [x + grid_step_x, y, z]} | acc], else: acc end).()
+            |> (fn acc -> if y + grid_step_y <= max_y, do: [%{start: [x, y, z], end: [x, y + grid_step_y, z]} | acc], else: acc end).()
+            |> (fn acc -> if z + grid_step_z <= max_z, do: [%{start: [x, y, z], end: [x, y, z + grid_step_z]} | acc], else: acc end).()
 
             updated_acc = acc ++ new_lines
             updated_acc
@@ -145,8 +145,8 @@ defmodule NBodyProblemSimulation.Simulation do
 
     min_x = Enum.min(xs) - @padding
     max_x = Enum.max(xs) + @padding 
-    min_y = Enum.min(ys) - @padding / 2
-    max_y = Enum.max(ys) + @padding / 2
+    min_y = Enum.min(ys) - @padding
+    max_y = Enum.max(ys) + @padding
     min_z = Enum.min(zs) - @padding
     max_z = Enum.max(zs) + @padding
 
@@ -199,7 +199,7 @@ defmodule NBodyProblemSimulation.Simulation do
         color: 0xffff00,  # yellow
         pos: {0.0, 0.0, 0.0},
         vel: {0.0, 0.0, 0.0},
-        radius: 1
+        radius: @solar_radii
       },
       # --- MERCURY ---
       %{
@@ -217,7 +217,7 @@ defmodule NBodyProblemSimulation.Simulation do
         color: 0xffa07a, # light salmon
         pos: {0.723, 0.0, 0.0},
         vel: {0.0, 0.0, 2.0 * :math.pi / :math.sqrt(0.723)},
-        radius: 0.5
+        radius: 2
       },
       # # --- EARTH ---
       %{
@@ -226,26 +226,26 @@ defmodule NBodyProblemSimulation.Simulation do
         color: 0x0000ff, # blue
         pos: {1.0, 0.0, 0.0}, # 1 AU on X-axis
         vel: {0.0, 0.0, 2.0 * :math.pi}, # ~6.283 AU/year
-        radius: 0.5
+        radius: 2
       },
-      # # --- MARS ---
-      # %{
-      #   id: 5,
-      #   mass: 3.22e-7,   # ~6.42e23 kg => ~3.22e-7 solar masses
-      #   color: 0xff4500, # orange-red
-      #   pos: {-1.524, 0.0, 0.0},
-      #   vel: {0.0, 0.0, -2.0 * :math.pi / :math.sqrt(1.524)},
-      #   radius: 2
-      # },
-      # # --- JUPITER ---
-      # %{
-      #   id: 6,
-      #   mass: 9.54e-4,   # ~1.90e27 kg => ~9.54e-4 solar masses
-      #   color: 0xffa500, # orange
-      #   pos: {5.2, 0.0, 0.0},
-      #   vel: {0.0, 0.0, 2.0 * :math.pi / :math.sqrt(5.2)},
-      #   radius: 12
-      # },
+      # --- MARS ---
+      %{
+        id: 5,
+        mass: 3.22e-7,   # ~6.42e23 kg => ~3.22e-7 solar masses
+        color: 0xff4500, # orange-red
+        pos: {-1.524, 0.0, 0.0},
+        vel: {0.0, 0.0, -2.0 * :math.pi / :math.sqrt(1.524)},
+        radius: 1
+      },
+      # --- JUPITER ---
+      %{
+        id: 6,
+        mass: 9.54e-4,   # ~1.90e27 kg => ~9.54e-4 solar masses
+        color: 0xffa500, # orange
+        pos: {5.2, 0.0, 0.0},
+        vel: {0.0, 0.0, 2.0 * :math.pi / :math.sqrt(5.2)},
+        radius: 10
+      },
       # # --- SATURN ---
       # %{
       #   id: 7,

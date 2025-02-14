@@ -2,12 +2,10 @@ import "phoenix_html"
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
-
 import * as THREE from "../vendor/three.min.js";
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+
 const AU_SCALE = 107;
-const AU_SCALE2 = 107;
-const au = 1 * 107;
 
 let Hooks = {};
 Hooks.ThreeDHook = {
@@ -43,7 +41,7 @@ Hooks.ThreeDHook = {
 
     // Scene setup
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+    this.camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 4000);
     this.camera.position.set(0, 0, 0);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -54,7 +52,7 @@ Hooks.ThreeDHook = {
     this.controls.dampingFactor = 0.05;
     this.controls.screenSpacePanning = false;
     this.controls.minDistance = 5;
-    this.controls.maxDistance = 40000;
+    this.controls.maxDistance = 80000;
     this.controls.coupleCenters = false;
     this.controls.keys = {
       LEFT: 'KeyA',
@@ -126,10 +124,7 @@ Hooks.ThreeDHook = {
         } else if ([x, y, z].some(isNaN)) {
           console.error(`NaN detected in point ${index}:`, [x, y, z]);
         } else {
-          // vertices.push([x * AU_SCALE, y  * AU_SCALE, z  * AU_SCALE][0], [x * AU_SCALE, y  * AU_SCALE, z  * AU_SCALE][1], [x * AU_SCALE, y  * AU_SCALE, z  * AU_SCALE][2]);
-          // vertices.push([x, y, z][0] * AU_SCALE, [x, y, z][1] * AU_SCALE, [x, y, z][2] * AU_SCALE);
-          vertices.push([x, y, z][0] * AU_SCALE2, [x, y, z][1] * AU_SCALE2, [x, y, z][2] * AU_SCALE2);
-          //vertices.push([x, y, z][0], [x, y, z][1], [x, y, z][2]);
+          vertices.push([x, y, z][0] * AU_SCALE, [x, y, z][1] * AU_SCALE, [x, y, z][2] * AU_SCALE);
         }
       });
       console.log("Processed Vertices:", vertices.length);

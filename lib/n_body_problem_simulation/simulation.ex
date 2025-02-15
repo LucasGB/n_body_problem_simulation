@@ -4,6 +4,7 @@ defmodule NBodyProblemSimulation.Simulation do
   """
   alias NBodyProblemSimulation.GravityField
   alias NBodyProblemSimulation.Simulation
+  alias NBodyProblemSimulation.InitialState
   #@g (4 * :math.pi() * :math.pi())  # Gravitational constant compatible with 1 Solar Mass + 1 AU
   @g 6.67430*10.0e-11
   
@@ -17,27 +18,11 @@ defmodule NBodyProblemSimulation.Simulation do
             grid: nil,
             time: 0.0
 
-  @spec initial_state() :: %NBodyProblemSimulation.Simulation{
-    bodies: [
-      %{
-        color: 255 | 11_184_810 | 16_752_762 | 16_776_960,
-        id: 1 | 2 | 3 | 4,
-        mass: float(),
-        pos: {any(), any(), any()},
-        radius: 1 | 3 | 4,
-        vel: {any(), any(), any()}
-      },
-    ],
-    grid: nil,
-    time: float()
-  }
   @doc """
   Returns the initial simulation state with N bodies.
   """
   def initial_state do
-    %__MODULE__{
-      bodies: initial_bodies()
-    }
+      InitialState.initial_state()
   end
 
   @doc """
@@ -182,97 +167,4 @@ defmodule NBodyProblemSimulation.Simulation do
   end
   defp float_range(_start, _stop, _step), do: []
 
-  defp initial_bodies do
-    [
-       #%{
-       #  id: 10,
-       #  mass: @solar_mass,        # 1 solar mass
-       #  color: 0xf2f955,  # mostard yellow
-       #  pos: {3.0, 4.0, 4.0},
-       #  vel: {0.0, -1.0, 0.0},
-       #  radius: 1
-       #},
-      # --- SUN ---
-      %{
-        id: 1,
-        mass: @solar_mass,        # 1 solar mass
-        color: 0xffff00,  # yellow
-        pos: {0.0, 0.0, 0.0},
-        vel: {0.0, 0.0, 0.0},
-        radius: @solar_radii
-      },
-      # --- MERCURY ---
-      %{
-        id: 2,
-        mass: 1.66e-7,    # ~3.30e23 kg => ~1.66e-7 solar masses
-        color: 0xaaaaaa,  # gray-ish
-        pos: {0.39, 0.0, 0.0},    # ~0.39 AU
-        vel: {0.0, 0.0, 2.0 * :math.pi / :math.sqrt(0.39)},
-        radius: 0.5
-      },
-      # --- VENUS ---
-      %{
-        id: 3,
-        mass: 2.45e-6,   # ~4.87e24 kg => ~2.45e-6 solar masses
-        color: 0xffa07a, # light salmon
-        pos: {0.723, 0.0, 0.0},
-        vel: {0.0, 0.0, 2.0 * :math.pi / :math.sqrt(0.723)},
-        radius: 2
-      },
-      # # --- EARTH ---
-      %{
-        id: 4,
-        mass: 3.0e-6,    # ~5.97e24 kg => ~3.0e-6 solar masses
-        color: 0x0000ff, # blue
-        pos: {1.0, 0.0, 0.0}, # 1 AU on X-axis
-        vel: {0.0, 0.0, 2.0 * :math.pi}, # ~6.283 AU/year
-        radius: 2
-      },
-      # --- MARS ---
-      %{
-        id: 5,
-        mass: 3.22e-7,   # ~6.42e23 kg => ~3.22e-7 solar masses
-        color: 0xff4500, # orange-red
-        pos: {-1.524, 0.0, 0.0},
-        vel: {0.0, 0.0, -2.0 * :math.pi / :math.sqrt(1.524)},
-        radius: 1
-      },
-      # --- JUPITER ---
-      %{
-        id: 6,
-        mass: 9.54e-4,   # ~1.90e27 kg => ~9.54e-4 solar masses
-        color: 0xffa500, # orange
-        pos: {5.2, 0.0, 0.0},
-        vel: {0.0, 0.0, 2.0 * :math.pi / :math.sqrt(5.2)},
-        radius: 10
-      },
-      # # --- SATURN ---
-      # %{
-      #   id: 7,
-      #   mass: 2.86e-4,   # ~5.68e26 kg => ~2.86e-4 solar masses
-      #   color: 0xffff99, # pale yellow
-      #   pos: {9.58, 0.0, 0.0},
-      #   vel: {0.0, 0.0, 2.0 * :math.pi / :math.sqrt(9.58)},
-      #   radius: 10
-      # },
-      # # --- URANUS ---
-      # %{
-      #   id: 8,
-      #   mass: 4.36e-5,   # ~8.68e25 kg => ~4.36e-5 solar masses
-      #   color: 0x40e0d0, # turquoise
-      #   pos: {19.2, 0.0, 0.0},
-      #   vel: {0.0, 0.0, 2.0 * :math.pi / :math.sqrt(19.2)},
-      #   radius: 7
-      # },
-      # # --- NEPTUNE ---
-      # %{
-      #   id: 9,
-      #   mass: 5.1e-5,    # ~1.02e26 kg => ~5.1e-5 solar masses
-      #   color: 0x0000ff, # darker blue
-      #   pos: {-30.05, 0.0, 0.0},
-      #   vel: {0.0, 0.0, -2.0 * :math.pi / :math.sqrt(30.05)},
-      #   radius: 7
-      # }
-    ]
-  end
 end

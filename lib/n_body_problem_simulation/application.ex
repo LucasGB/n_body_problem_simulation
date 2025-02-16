@@ -17,7 +17,8 @@ defmodule NBodyProblemSimulation.Application do
       {Finch, name: NBodyProblemSimulation.Finch},
       NBodyProblemSimulation.SimulationServer.child_spec(
         {NBodyProblemSimulation.Simulation.initial_state(),
-         NBodyProblemSimulation.Integration.EulerCromer}
+         NBodyProblemSimulation.Integration.VelocityVerlet,
+        }
       ),
       # Start a worker by calling: NBodyProblemSimulation.Worker.start_link(arg)
       # {NBodyProblemSimulation.Worker, arg},

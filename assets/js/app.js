@@ -127,7 +127,7 @@ Hooks.ThreeDHook = {
           vertices.push([x, y, z][0] * AU_SCALE, [x, y, z][1] * AU_SCALE, [x, y, z][2] * AU_SCALE);
         }
       });
-      console.log("Processed Vertices:", vertices.length);
+      // console.log("Processed Vertices:", vertices.length);
       
       const cleanVertices = vertices.filter(n => !isNaN(n));  // Remove NaNs
       
@@ -158,7 +158,7 @@ Hooks.ThreeDHook = {
             body.pos[2] * AU_SCALE
           );
           this.sphereMeshes[body.id].position.copy(pos);
-          console.log(`${body.id} - Position: ${pos}:`, body.id, pos);
+          // console.log(`${body.id} - Position: ${pos}:`, body.id, pos);
           this.traces[body.id].positions.push(pos);
           // Limit the last N positions to limit memory usage
           if (this.traces[body.id].positions.length > 2000) {

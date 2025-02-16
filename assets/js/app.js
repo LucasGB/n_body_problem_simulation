@@ -5,7 +5,7 @@ import topbar from "../vendor/topbar"
 import * as THREE from "../vendor/three.min.js";
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-const AU_SCALE = 1;
+const AU_SCALE = 10;
 
 let Hooks = {};
 Hooks.ThreeDHook = {

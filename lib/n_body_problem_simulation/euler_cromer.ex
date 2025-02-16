@@ -7,7 +7,6 @@ defmodule NBodyProblemSimulation.Integration.EulerCromer do
   alias NBodyProblemSimulation.NxUtils
   require Nx.Defn
 
-  # This function wraps the Nx integration step.
   defp integrate({positions, velocities}, masses, dt, g_constant) do
     accelerations = NxUtils.compute_accelerations(positions, masses, g_constant)
     new_velocities = Nx.add(velocities, Nx.multiply(accelerations, dt))

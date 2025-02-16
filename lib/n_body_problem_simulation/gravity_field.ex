@@ -1,4 +1,12 @@
 defmodule NBodyProblemSimulation.GravityField do
+  @moduledoc """
+  Provides functions to warp points by applying gravitational effects.
+  """
+  alias NBodyProblemSimulation.Geometry
+  
+  @doc """
+  Warps a point by applying the gravitational influence of all bodies.
+  """
   def warp_point({x, y, z}, bodies, k) do
     Enum.reduce(bodies, {x, y, z}, fn body, acc ->
       apply_body_gravity(acc, body, k)
@@ -11,22 +19,14 @@ defmodule NBodyProblemSimulation.GravityField do
     end)
   end
 
-  defp apply_body_gravity({x, y, z}, %{pos: {bx, by, bz}, mass: m}, g_scale) do
-    dx = bx - x
-    dy = by - y
-    dz = bz - z
-    dist_sqr = dx*dx + dy*dy + dz*dz
-    dist = :math.sqrt(dist_sqr)
+  defp apply_body_gravity(point, %{pos: pos, mass: m}, g_scale) do
+    delta = Geometry.subtract(pos, point)
+    dist = Geometry.magnitude(delta)
     if dist < 1.0e-6 do
-      {x, y, z}
+      point
     else
-      # Inverse-square
-      force = g_scale * m / (dist_sqr * dist) # (1 / r^3)
-      {
-        x + dx * force,
-        y + dy * force,
-        z + dz * force
-      }
+      force = g_scale * m / (dist * dist * dist)
+      Geometry.add(point, Geometry.scale(delta, force))
     end
   end
 end

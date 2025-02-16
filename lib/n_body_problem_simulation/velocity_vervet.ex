@@ -31,14 +31,14 @@ defmodule NBodyProblemSimulation.Integration.VelocityVerlet do
   @impl true
   @spec update(NBodyProblemSimulation.Simulation.t(), keyword()) ::
           NBodyProblemSimulation.Simulation.t()
-  def update(%NBodyProblemSimulation.Simulation{bodies: bodies, time: time} = simulation, opts) do
+  def update(%NBodyProblemSimulation.Simulation{bodies: bodies} = simulation, opts) do
     dt = Keyword.fetch!(opts, :dt)
-    g_constant = Keyword.fetch!(opts, :dt)
+    g_constant = Keyword.fetch!(opts, :g_constant)
     
     {positions, velocities, masses} = NxUtils.extract_tensors(bodies)
     {new_positions, new_velocities} = velocity_verlet_step(positions, velocities, masses, dt, g_constant)
     new_bodies = NxUtils.update_bodies(bodies, new_positions, new_velocities)
 
-    %{simulation | bodies: new_bodies, time: time + dt}
+    %{simulation | bodies: new_bodies, time: simulation.time + dt}
   end
 end

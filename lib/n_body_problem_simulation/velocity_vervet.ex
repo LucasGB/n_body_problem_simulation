@@ -1,54 +1,44 @@
 defmodule NBodyProblemSimulation.Integration.VelocityVerlet do
   @moduledoc """
-  Velocity Verlet integration for N‑body simulation.
+  Velocity Verlet integration for N‑body simulation using Nx.
   """
   @behaviour NBodyProblemSimulation.Integration
 
-  alias NBodyProblemSimulation.Math
+  alias NBodyProblemSimulation.NxUtils
+  require Nx.Defn
+
+  @doc """
+  Performs a complete Velocity Verlet integration step.
+
+  - `positions`: an {N, 3} tensor.
+  - `velocities`: an {N, 3} tensor.
+  - `masses`: an {N} tensor.
+  - `dt`: time step.
+  - `g`: gravitational constant.
+
+  Returns a tuple `{new_positions, new_velocities}` as Nx tensors.
+  """
+  Nx.Defn.defn velocity_verlet_step(positions, velocities, masses, dt, g) do
+    initial_accelerations = NxUtils.compute_accelerations(positions, masses, g)
+    new_positions = Nx.add(positions, Nx.add(Nx.multiply(velocities, dt), Nx.multiply(initial_accelerations, 0.5 * Nx.pow(dt, 2))))
+    
+    new_accelerations = NxUtils.compute_accelerations(new_positions, masses, g)
+    new_velocities = Nx.add(velocities, Nx.multiply(Nx.add(initial_accelerations, new_accelerations), 0.5 * dt))
+
+    {new_positions, new_velocities}
+  end
 
   @impl true
-  def update(simulation, dt: dt) do
-    bodies_with_acc =
-      Enum.map(simulation.bodies, fn body ->
-        acc = Map.get(body, :acc, Math.compute_acceleration(body, simulation.bodies))
-        Map.put(body, :acc, acc)
-      end)
+  @spec update(NBodyProblemSimulation.Simulation.t(), keyword()) ::
+          NBodyProblemSimulation.Simulation.t()
+  def update(%NBodyProblemSimulation.Simulation{bodies: bodies, time: time} = simulation, opts) do
+    dt = Keyword.fetch!(opts, :dt)
+    g_constant = Keyword.fetch!(opts, :dt)
+    
+    {positions, velocities, masses} = NxUtils.extract_tensors(bodies)
+    {new_positions, new_velocities} = velocity_verlet_step(positions, velocities, masses, dt, g_constant)
+    new_bodies = NxUtils.update_bodies(bodies, new_positions, new_velocities)
 
-    updated_positions =
-      Enum.map(bodies_with_acc, fn body ->
-        new_pos =
-          Math.add_vectors(
-            body.pos,
-            Math.add_vectors(
-              Math.scalar_mult(body.vel, dt),
-              Math.scalar_mult(body.acc, 0.5 * dt * dt)
-            )
-          )
-
-        Map.put(body, :pos, new_pos)
-      end)
-
-    sim_with_new_positions = %{simulation | bodies: updated_positions}
-
-    bodies_with_new_acc =
-      Enum.map(sim_with_new_positions.bodies, fn body ->
-        new_acc = Math.compute_acceleration(body, sim_with_new_positions.bodies)
-        Map.put(body, :new_acc, new_acc)
-      end)
-
-    final_bodies =
-      Enum.map(bodies_with_new_acc, fn body ->
-        new_vel =
-          Math.add_vectors(
-            body.vel,
-            Math.scalar_mult(Math.add_vectors(body.acc, body.new_acc), 0.5 * dt)
-          )
-
-        body
-        |> Map.merge(%{vel: new_vel, acc: body.new_acc})
-        |> Map.delete(:new_acc)
-      end)
-
-    %{simulation | bodies: final_bodies}
+    %{simulation | bodies: new_bodies, time: time + dt}
   end
 end

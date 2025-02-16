@@ -5,7 +5,7 @@ defmodule NBodyProblemSimulation.Simulation do
   alias NBodyProblemSimulation.GravityField
   alias NBodyProblemSimulation.Simulation
   alias NBodyProblemSimulation.InitialState
-  #@g (4 * :math.pi() * :math.pi())  # Gravitational constant compatible with 1 Solar Mass + 1 AU
+  @g_constant (4 * :math.pi() * :math.pi())  # Gravitational constant compatible with 1 Solar Mass + 1 AU
   @g 6.67430*10.0e-11
   
   @solar_mass 1.0
@@ -14,6 +14,12 @@ defmodule NBodyProblemSimulation.Simulation do
   # Experimental parameters. Remove and set to function variables?
   @padding 1.0
   @grid_segments_per_axis 4
+
+  @type t :: %__MODULE__{
+    bodies: list(any()),
+    grid: any(),
+    time: number()
+  }
   defstruct bodies: [],
             grid: nil,
             time: 0.0
@@ -29,7 +35,7 @@ defmodule NBodyProblemSimulation.Simulation do
   Updates the simulation state by a time step dt using the given integration strategy that implements the NBodyProblemSimulation.Integration behavior.
   """
   def update(%Simulation{} = simulation, dt: dt, strategy: integration_module) do
-    updated_bodies = integration_module.update(simulation, dt: dt)
+    updated_bodies = integration_module.update(simulation, dt: dt, g_constant:  @g_constant)
 
     updated_grid = compute_grid_warp(simulation.grid, updated_bodies.bodies)
 

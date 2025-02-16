@@ -1,21 +1,31 @@
 defmodule NBodyProblemSimulation.Integration.EulerCromer do
   @moduledoc """
-  Euler-Cromer integration for N‑body simulation.
+  Euler-Cromer integration for N‑body simulation using Nx.
   """
   @behaviour NBodyProblemSimulation.Integration
 
-  alias NBodyProblemSimulation.Math
+  alias NBodyProblemSimulation.NxUtils
+  require Nx.Defn
+
+  # This function wraps the Nx integration step.
+  defp integrate({positions, velocities}, masses, dt, g_constant) do
+    accelerations = NxUtils.compute_accelerations(positions, masses, g_constant)
+    new_velocities = Nx.add(velocities, Nx.multiply(accelerations, dt))
+    new_positions = Nx.add(positions, Nx.multiply(new_velocities, dt))
+    {new_positions, new_velocities}
+  end
 
   @impl true
-  def update(simulation, dt: dt) do
-    new_bodies =
-      Enum.map(simulation.bodies, fn body ->
-        acceleration = Math.compute_acceleration(body, simulation.bodies)
-        new_vel = Math.add_vectors(body.vel, Math.scalar_mult(acceleration, dt))
-        new_pos = Math.add_vectors(body.pos, Math.scalar_mult(new_vel, dt))
-        Map.merge(body, %{vel: new_vel, pos: new_pos})
-      end)
+  @spec update(NBodyProblemSimulation.Simulation.t(), keyword()) ::
+          NBodyProblemSimulation.Simulation.t()
+  def update(%NBodyProblemSimulation.Simulation{bodies: bodies} = simulation, opts) do
+    dt = Keyword.fetch!(opts, :dt)
+    g_constant = Keyword.fetch!(opts, :g_constant)
 
-    %{simulation | bodies: new_bodies}
+    {positions, velocities, masses} = NxUtils.extract_tensors(bodies)
+    {new_positions, new_velocities} = integrate({positions, velocities}, masses, dt, g_constant)
+    new_bodies = NxUtils.update_bodies(bodies, new_positions, new_velocities)
+
+    %{simulation | bodies: new_bodies, time: simulation.time + dt}
   end
 end

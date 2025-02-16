@@ -3,5 +3,5 @@ defmodule NBodyProblemSimulation.Integration do
   Behavior for N‑body integration strategies.
   """
 
-  @callback update(simulation :: any(), dt: number()) :: any()
+  @callback update(simulation :: NBodyProblemSimulation.Simulation.t(), opts :: Keyword.t()) :: NBodyProblemSimulation.Simulation.t()
 end

@@ -5,7 +5,7 @@ import topbar from "../vendor/topbar"
 import * as THREE from "../vendor/three.min.js";
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-const AU_SCALE = 107;
+const AU_SCALE = 1;
 
 let Hooks = {};
 Hooks.ThreeDHook = {
@@ -161,7 +161,7 @@ Hooks.ThreeDHook = {
           console.log(`${body.id} - Position: ${pos}:`, body.id, pos);
           this.traces[body.id].positions.push(pos);
           // Limit the last N positions to limit memory usage
-          if (this.traces[body.id].positions.length > 400) {
+          if (this.traces[body.id].positions.length > 2000) {
             this.traces[body.id].positions.shift();
           }
   

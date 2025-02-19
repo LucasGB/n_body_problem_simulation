@@ -1,5 +1,11 @@
 # NBodyProblemSimulation
 
+## Setup
+mix deps.get      
+mix assets.deploy 
+mix compile
+
+## Execution
 To start your Phoenix server:
 
   * Run `mix setup` to install and setup dependencies
@@ -16,3 +22,4 @@ Ready to run in production? Please [check our deployment guides](https://hexdocs
   * Docs: https://hexdocs.pm/phoenix
   * Forum: https://elixirforum.com/c/phoenix-forum
   * Source: https://github.com/phoenixframework/phoenix
+

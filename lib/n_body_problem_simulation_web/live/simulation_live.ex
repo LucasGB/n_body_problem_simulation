@@ -10,15 +10,28 @@ defmodule NBodyProblemSimulationWeb.SimulationLive do
   @dt 0.001          # simulation time step
 
   @impl true
-  @spec mount(any(), any(), Phoenix.LiveView.Socket.t()) :: {:ok, any()}
-  def mount(_params, _session, socket) do
-    if connected?(socket), do: Phoenix.PubSub.subscribe(NBodyProblemSimulation.PubSub, @simulation_update_topic)
-    simulation = Simulation.initial_state()
-    {:ok, assign(socket, simulation: simulation)}
+  def mount(%{"simulation_id" => simulation_id}, _session, socket) do
+    if connected?(socket) do
+      # Subscribe to simulation updates on a namespaced topic.
+      Phoenix.PubSub.subscribe(NBodyProblemSimulation.PubSub, "#{@simulation_update_topic}:#{simulation_id}")
+    end
+
+    simulation =
+      case Registry.lookup(NBodyProblemSimulation.SimulationRegistry, simulation_id) do
+        [{_pid, _}] -> SimulationServer.get_state(simulation_id)
+        [] -> nil
+      end
+
+    socket =
+      assign(socket,
+        simulation_id: simulation_id,
+        simulation: simulation
+      )
+
+    {:ok, socket}
   end
 
   @impl true
-  @spec handle_info({:simulation_update, any()}, map()) :: {:noreply, map()}
   def handle_info({:simulation_update, new_simulation}, socket) do
     socket =
       socket
@@ -31,58 +44,40 @@ defmodule NBodyProblemSimulationWeb.SimulationLive do
   end
 
   @impl true
-  @spec handle_event(<<_::120>>, map(), any()) :: {:noreply, any()}
-  def handle_event("change_strategy", %{"strategy" => strategy}, socket) do
-    strategy_module = case strategy do
-      "euler_cromer" -> NBodyProblemSimulation.Integration.EulerCromer
-      "velocity_verlet" -> NBodyProblemSimulation.Integration.VelocityVerlet
-      _ -> NBodyProblemSimulation.Integration.EulerCromer
-    end
-
-    SimulationServer.set_strategy(strategy_module)
-    {:noreply, assign(socket, strategy: strategy_module)}
-  end
-
-  @impl true
   def render(assigns) do
     ~H"""
-      <h1>N-body Problem</h1>
-      <div id="select-strategy" phx-update="ignore">
-        <label>Choose Integration Method:</label>
-        <select phx-change="change_strategy">
-          <option value="euler_cromer">Euler-Cromer</option>
-          <option value="velocity_verlet">Velocity Verlet</option>
-          <option value="runge-kutta-4">Runge-Kutta 4</option>
-        </select>
-      </div>
-
-      <div id="simulation" phx-hook="ThreeDHook" data-simulation={Jason.encode!(@simulation.bodies)}>
-        <canvas id="three-canvas" phx-update="ignore" style="width: 800px; height: 600px;"></canvas>
-      </div>
-
-      <div id="ui-container" style="display: flex; flex-direction: row; align-items: flex-start; gap: 10px;">
-        <button
-          id="adjust-button"
-          style={"background-color: #f12; color: #fff; padding: 10px; border-radius: 5px; width: 120px; text-align: center; cursor: pointer; border: 1px solid white;"}
-        >
-          Auto Focus
-        </button>
-        <button
-          id="show-grid-lines"
-          style={"background-color: #2f1; color: #fff; padding: 10px; border-radius: 5px; width: 120px; text-align: center; cursor: pointer; border: 1px solid white;"}
-        >
-          Show Grid
-        </button>
-        <%= for body <- @simulation.bodies do %>
+      <h1>Simulation: <%= @simulation_id %></h1>
+      
+      <%= if @simulation do %>
+        <div id="simulation" phx-hook="ThreeDHook" data-simulation={Jason.encode!(@simulation.bodies)}>
+          <canvas id="three-canvas" phx-update="ignore" style="width: 800px; height: 600px;"></canvas>
+        </div>
+        <div id="ui-container" style="display: flex; flex-direction: row; align-items: flex-start; gap: 10px;">
           <button
-            class="focus-button"
-            style={"background-color: ##{Integer.to_string(body.color, 16) |> String.pad_leading(6, "0")}; color: #fff; padding: 10px; border-radius: 5px; width: 120px; text-align: center; cursor: pointer; border: 1px solid white;"}
-            data-body-id={body.id}
+            id="adjust-button"
+            style={"background-color: #f12; color: #fff; padding: 10px; border-radius: 5px; width: 120px; text-align: center; cursor: pointer; border: 1px solid white;"}
           >
-            ID {body.id}
+            Auto Focus
           </button>
-        <% end %>
-      </div>
+          <button
+            id="show-grid-lines"
+            style={"background-color: #2f1; color: #fff; padding: 10px; border-radius: 5px; width: 120px; text-align: center; cursor: pointer; border: 1px solid white;"}
+          >
+            Show Grid
+          </button>
+          <%= for body <- @simulation.bodies do %>
+            <button
+              class="focus-button"
+              style={"background-color: ##{Integer.to_string(body.color, 16) |> String.pad_leading(6, "0")}; color: #fff; padding: 10px; border-radius: 5px; width: 120px; text-align: center; cursor: pointer; border: 1px solid white;"}
+              data-body-id={body.id}
+            >
+              ID {body.id}
+            </button>
+          <% end %>
+        </div>
+      <% else %>
+        <p>Simulation is not running.</p>
+      <% end %>
     """
   end
 end

@@ -1,0 +1,20 @@
+defmodule NBodyProblemSimulationWeb.PageHTML do
+  use NBodyProblemSimulationWeb, :html
+
+  embed_templates "page_html/*"
+
+  def running_simulations(assigns) do
+    ~H"""
+    <h1>Currently Running Simulations</h1>
+    <ul>
+      <%= for simulation_id <- @running_simulations do %>
+        <li>
+          <a href={~p"/#{simulation_id}"}>
+            <%= simulation_id %>
+          </a>
+        </li>
+      <% end %>
+    </ul>
+    """
+  end
+end

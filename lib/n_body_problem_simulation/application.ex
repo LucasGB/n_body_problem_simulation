@@ -1,7 +1,4 @@
 defmodule NBodyProblemSimulation.Application do
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
-  @moduledoc false
 
   use Application
 
@@ -10,30 +7,16 @@ defmodule NBodyProblemSimulation.Application do
   def start(_type, _args) do
     children = [
       NBodyProblemSimulationWeb.Telemetry,
-      # NBodyProblemSimulation.Repo,
-      # {DNSCluster, query: Application.get_env(:n_body_problem_simulation, :dns_cluster_query) || :ignore},
+      {Registry, keys: :unique, name: NBodyProblemSimulation.SimulationRegistry},
+      {DynamicSupervisor, strategy: :one_for_one, name: NBodyProblemSimulation.SimulationSupervisor},
       {Phoenix.PubSub, name: NBodyProblemSimulation.PubSub},
-      # Start the Finch HTTP client for sending emails
-      {Finch, name: NBodyProblemSimulation.Finch},
-      NBodyProblemSimulation.SimulationServer.child_spec(
-        {NBodyProblemSimulation.Simulation.initial_state(),
-         NBodyProblemSimulation.Integration.VelocityVerlet,
-        }
-      ),
-      # Start a worker by calling: NBodyProblemSimulation.Worker.start_link(arg)
-      # {NBodyProblemSimulation.Worker, arg},
-      # Start to serve requests, typically the last entry
       NBodyProblemSimulationWeb.Endpoint
     ]
 
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
     opts = [strategy: :one_for_one, name: NBodyProblemSimulation.Supervisor]
     Supervisor.start_link(children, opts)
   end
 
-  # Tell Phoenix to update the endpoint configuration
-  # whenever the application is updated.
   @impl true
   def config_change(changed, _new, removed) do
     NBodyProblemSimulationWeb.Endpoint.config_change(changed, removed)

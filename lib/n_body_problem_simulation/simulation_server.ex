@@ -20,33 +20,47 @@ defmodule NBodyProblemSimulation.SimulationServer do
       restart: :permanent
     }
   end
+  
+  def via_tuple(simulation_id),
+    do: {:via, Registry, {NBodyProblemSimulation.SimulationRegistry, simulation_id}}
 
-  def start_link({initial_simulation, strategy}) do
-    GenServer.start_link(__MODULE__, {initial_simulation, strategy}, name: __MODULE__)
+  def start_link({simulation_id, initial_simulation, strategy}) do
+    GenServer.start_link(__MODULE__, {initial_simulation, strategy, simulation_id}, name: via_tuple(simulation_id))
   end
 
-  def get_state do
-    GenServer.call(__MODULE__, :get_state)
+  def get_state(simulation_id) do
+    GenServer.call(via_tuple(simulation_id), :get_state)
   end
 
-  def set_strategy(strategy) do
-    GenServer.cast(__MODULE__, {:set_strategy, strategy})
+  def set_strategy(simulation_id, strategy) do
+    GenServer.cast(via_tuple(simulation_id), {:set_strategy, strategy})
+  end
+  
+  def stop_simulation(simulation_id) do
+    case Registry.lookup(NBodyProblemSimulation.SimulationRegistry, simulation_id) do
+      [{pid, _}] -> DynamicSupervisor.terminate_child(NBodyProblemSimulation.SimulationSupervisor, pid)
+      [] -> :ok
+    end
   end
 
   # GenServer Callbacks
 
   @impl true
-  def init({initial_simulation, strategy}) do
+  def init({initial_simulation, strategy, simulation_id}) do
     :timer.send_interval(@tick_interval, :tick)
-    {:ok, %{simulation: initial_simulation, strategy: strategy}}
+    {:ok, %{simulation: initial_simulation, strategy: strategy, id: simulation_id}}
   end
 
   @impl true
-  def handle_info(:tick, %{simulation: simulation, strategy: strategy} = state) do
+  def handle_info(:tick, %{simulation: simulation, strategy: strategy, id: simulation_id} = state) do
     new_simulation = Simulation.update(simulation, dt: @dt, strategy: strategy)
     
     if new_simulation != simulation do
-      Phoenix.PubSub.broadcast(NBodyProblemSimulation.PubSub, @pubsub_topic, {:simulation_update, new_simulation})
+      Phoenix.PubSub.broadcast(
+        NBodyProblemSimulation.PubSub,
+        "simulation:update:#{simulation_id}",
+        {:simulation_update, new_simulation}
+      )
     end
     
     {:noreply, %{state | simulation: new_simulation}}

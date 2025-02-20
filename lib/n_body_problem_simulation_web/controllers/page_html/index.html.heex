@@ -1,0 +1,23 @@
+<form action={~p"/create_simulation"} method="post">
+  <input type="hidden" name="_csrf_token" value={ get_csrf_token() }>
+  <div>
+    <label>Simulation ID:</label>
+    <input type="text" name="simulation_id" placeholder="e.g. simulation-42" required>
+  </div>
+  <div>
+    <label>Integration Method:</label>
+    <select name="integration_method">
+      <option value="euler_cromer">Euler-Cromer</option>
+      <option value="velocity_verlet">Velocity Verlet</option>
+    </select>
+  </div>
+  <div>
+    <label>Initial State:</label>
+    <select name="initial_state">
+      <%= for state <- @available_states do %>
+        <option value={state}><%= state %></option>
+      <% end %>
+    </select>
+  </div>
+  <button type="submit">Start Simulation</button>
+</form>

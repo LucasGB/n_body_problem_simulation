@@ -3,7 +3,7 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
 import * as THREE from "../vendor/three.min.js";
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { OrbitControls } from '../vendor/three/examples/jsm/controls/OrbitControls.js';
 
 const AU_SCALE = 10;
 

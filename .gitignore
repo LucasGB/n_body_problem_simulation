@@ -35,3 +35,8 @@ n_body_problem_simulation-*.tar
 npm-debug.log
 /assets/node_modules/
 
+*.txt
+
+/priv/gettext/
+/priv/static/
+/assets/vendor/

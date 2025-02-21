@@ -35,12 +35,15 @@ defmodule NBodyProblemSimulation.Simulation do
   @doc """
   Updates the simulation state by a time step dt using the given integration strategy that implements the NBodyProblemSimulation.Integration behavior.
   """
-  @spec update(t, [{:dt, number()} | {:strategy, module()} | {:g_constant, number()}]) :: t
-  def update(%Simulation{} = simulation, dt: dt, strategy: integration_module) do
+  def update(%Simulation{} = simulation, dt: dt, strategy: integration_module, grid_enabled: grid_enabled) do
     updated_bodies = integration_module.update(simulation, dt: dt, g_constant:  @g_constant)
-
-    updated_grid = Grid.compute_grid(simulation.grid, updated_bodies.bodies, @grid_segments_per_axis, @padding, @g)
-
+    
+    updated_grid = if grid_enabled do
+      Grid.compute_grid(simulation.grid, updated_bodies.bodies, @grid_segments_per_axis, @padding, @g)
+    else
+      nil
+    end
+      
     %Simulation{simulation | bodies: updated_bodies.bodies, grid: updated_grid, time: simulation.time + dt}
   end
 end

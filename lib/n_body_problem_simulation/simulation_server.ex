@@ -25,7 +25,7 @@ defmodule NBodyProblemSimulation.SimulationServer do
     do: {:via, Registry, {NBodyProblemSimulation.SimulationRegistry, simulation_id}}
 
   def start_link({simulation_id, initial_simulation, strategy}) do
-    GenServer.start_link(__MODULE__, {initial_simulation, strategy, simulation_id}, name: via_tuple(simulation_id))
+    GenServer.start_link(__MODULE__, {initial_simulation, strategy, simulation_id, true}, name: via_tuple(simulation_id))
   end
 
   def get_state(simulation_id) do
@@ -42,23 +42,32 @@ defmodule NBodyProblemSimulation.SimulationServer do
       [] -> :ok
     end
   end
+  
+  def toggle_grid(simulation_id) do
+    GenServer.cast(via_tuple(simulation_id), :toggle_grid)
+  end
 
   # GenServer Callbacks
 
   @impl true
-  def init({initial_simulation, strategy, simulation_id}) do
+  def init({initial_simulation, strategy, simulation_id, grid_enabled}) do
     :timer.send_interval(@tick_interval, :tick)
-    {:ok, %{simulation: initial_simulation, strategy: strategy, id: simulation_id}}
+    {:ok, %{simulation: initial_simulation, strategy: strategy, id: simulation_id, grid_enabled: grid_enabled}}
   end
 
   @impl true
-  def handle_info(:tick, %{simulation: simulation, strategy: strategy, id: simulation_id} = state) do
-    new_simulation = Simulation.update(simulation, dt: @dt, strategy: strategy)
+  def handle_info(:tick, %{simulation: simulation, strategy: strategy, id: simulation_id, grid_enabled: grid_enabled} = state) do
+    new_simulation = Simulation.update(simulation, dt: @dt, strategy: strategy, grid_enabled: grid_enabled)
     
     if new_simulation != simulation do
+      new_simulation = if grid_enabled do
+          new_simulation
+        else
+          %{new_simulation | grid: nil}
+      end
       Phoenix.PubSub.broadcast(
         NBodyProblemSimulation.PubSub,
-        "simulation:update:#{simulation_id}",
+        "#{@pubsub_topic}:#{simulation_id}",
         {:simulation_update, new_simulation}
       )
     end
@@ -74,5 +83,25 @@ defmodule NBodyProblemSimulation.SimulationServer do
   @impl true
   def handle_cast({:set_strategy, new_strategy}, state) do
     {:noreply, %{state | strategy: new_strategy}}
+  end 
+  
+  @impl true
+  def handle_cast(:toggle_grid, state) do
+    new_state = Map.update!(state, :grid_enabled, &(!&1))
+  
+    new_simulation =
+      if new_state.grid_enabled do
+        new_state.simulation
+      else
+        %{new_state.simulation | grid: nil}
+      end
+
+    Phoenix.PubSub.broadcast(
+      NBodyProblemSimulation.PubSub,
+      "#{@pubsub_topic}:#{state.id}",
+      {:simulation_update, new_simulation}
+    )
+
+    {:noreply, new_state}
   end
 end

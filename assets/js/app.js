@@ -16,10 +16,9 @@ Hooks.ThreeDHook = {
       });
     });
   
-    document.querySelectorAll("#show-grid-lines").forEach(button => {
-      button.addEventListener("click", () => {
-        this.showGridLines();
-      });
+    document.querySelector("#show-grid-lines").addEventListener("click", () => {
+      this.removeGrid();
+      this.pushEvent("toggle_grid");
     });
   
     document.querySelectorAll(".focus-button").forEach(button => {
@@ -31,6 +30,7 @@ Hooks.ThreeDHook = {
   },
   
   mounted() {
+    this.showGravityGrid = true;
     const canvas = this.el.querySelector("#three-canvas");
     if (!canvas) {
       console.error("Canvas element not found!");
@@ -65,9 +65,11 @@ Hooks.ThreeDHook = {
 
     this.userInteracting = false;
     this.autoAdjustTimeout = null;
-
-    this.handleEvent("grid_update", (payload) => {
-        this.updateGridGeometry(payload.grid)
+    
+    const simulationId = this.el.dataset.simulationId;
+    this.handleEvent(`grid_update:${simulationId}`, (payload) => {
+      console.log(payload)
+      this.updateGridGeometry(payload.grid)
     })
 
     this.sphereMeshes = {};
@@ -75,6 +77,7 @@ Hooks.ThreeDHook = {
 
     // Render celestial bodies
     const bodies = JSON.parse(this.el.dataset.simulation)
+    
     this.group = new THREE.Group();
     this.scene.add(this.group);
     bodies.forEach(body => {
@@ -98,26 +101,27 @@ Hooks.ThreeDHook = {
       };
       this.scene.add(this.traces[body.id].line);
     });
-    
+
+    this.addButtonListeners();
     this.animate();
   },
 
   updated() {
       this.updateSimultationData();
-      this.addButtonListeners();
   },
 
   updateGridGeometry(gridData) {
-      if (this.gridMesh) {
-        this.scene.remove(this.gridMesh);
-        this.gridMesh.geometry.dispose();
-        this.gridMesh.material.dispose();
-        this.gridMesh = null;
-      }
-  
-      const geometry = new THREE.BufferGeometry();
-      const vertices = [];
-  
+    if (this.gridMesh) {
+      this.scene.remove(this.gridMesh);
+      this.gridMesh.geometry.dispose();
+      this.gridMesh.material.dispose();
+      this.gridMesh = null;
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    const vertices = [];
+
+    if (this.showGravityGrid && Array.isArray(gridData)) {
       gridData.forEach(([x, y, z]) => {
         if (!Array.isArray([x, y, z]) || [x, y, z].length !== 3) {
           console.error(`Invalid point at index ${index}:`, [x, y, z]);
@@ -139,8 +143,21 @@ Hooks.ThreeDHook = {
 
       const material = new THREE.PointsMaterial({ size: 0.2, color: 0x808080 });
       this.gridMesh = new THREE.Points(geometry, material);
-  
+
       this.scene.add(this.gridMesh);
+    }
+  },
+
+  removeGrid() {
+    console.log("removeGrid Toggle!!")
+    this.showGravityGrid = !this.showGravityGrid;
+    console.log(this.showGravityGrid)
+    if (this.gridMesh) {
+      this.scene.remove(this.gridMesh);
+      this.gridMesh.geometry.dispose();
+      this.gridMesh.material.dispose();
+      this.gridMesh = null;
+    }
   },
 
   updateSimultationData() {
@@ -240,6 +257,7 @@ Hooks.ThreeDHook = {
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 let liveSocket = new LiveSocket("/live", Socket, {
   // longPollFallbackMs: 2500,
+  debug: false,
   params: {_csrf_token: csrfToken},
   hooks: Hooks
 })

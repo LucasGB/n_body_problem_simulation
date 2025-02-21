@@ -39,11 +39,6 @@ defmodule NBodyProblemSimulationWeb.SimulationController do
     redirect(conn, to: ~p"/#{simulation_id}")
   end
 
-  def stop_simulation(conn, %{"simulation_id" => simulation_id}) do
-    SimulationServer.stop_simulation(simulation_id)
-    redirect(conn, to: ~p"/#{simulation_id}")
-  end
-
   def list_running_simulations(conn, _params) do
     running_simulations =
       Registry.select(NBodyProblemSimulation.SimulationRegistry, [{{:"$1", :_}, [], [:"$1"]}])

@@ -30,6 +30,13 @@ defmodule NBodyProblemSimulationWeb.SimulationLive do
 
     {:ok, socket}
   end
+  
+  @impl true
+  def handle_event("stop_simulation", _params, socket) do
+    simulation_id = socket.assigns.simulation_id
+    SimulationServer.stop_simulation(simulation_id)
+    {:noreply, push_navigate(socket, to: "/")}
+  end
 
   @impl true
   def handle_info({:simulation_update, new_simulation}, socket) do
@@ -53,6 +60,11 @@ defmodule NBodyProblemSimulationWeb.SimulationLive do
           <canvas id="three-canvas" phx-update="ignore" style="width: 800px; height: 600px;"></canvas>
         </div>
         <div id="ui-container" style="display: flex; flex-direction: row; align-items: flex-start; gap: 10px;">
+          <button 
+            phx-click="stop_simulation"
+          >
+            Stop Simulation
+          </button>
           <button
             id="adjust-button"
             style={"background-color: #f12; color: #fff; padding: 10px; border-radius: 5px; width: 120px; text-align: center; cursor: pointer; border: 1px solid white;"}

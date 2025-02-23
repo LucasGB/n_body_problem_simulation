@@ -81,15 +81,7 @@ end
           >
             Auto Focus
           </button>
-          <%= for body <- @simulation.bodies do %>
-            <button
-              class="focus-button"
-              style={"background-color: ##{Integer.to_string(body.color, 16) |> String.pad_leading(6, "0")}; color: #fff; padding: 10px; border-radius: 5px; width: 120px; text-align: center; cursor: pointer; border: 1px solid white;"}
-              data-body-id={body.id}
-            >
-              ID {body.id}
-            </button>
-          <% end %>
+          
         </div>
       <% else %>
         <p>Simulation is not running.</p>

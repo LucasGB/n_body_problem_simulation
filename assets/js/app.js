@@ -196,11 +196,10 @@ Hooks.ThreeDHook = {
   },
 
   adjustCameraZoom() {
-    let bbox = new THREE.Box3().setFromObject(this.g);
+    let bbox = new THREE.Box3().setFromObject(this.group);
     const center = new THREE.Vector3();
     bbox.getCenter(center);
-    this.centroid.copy(center);
-    this.controls.target.copy(this.centroid);
+    this.controls.target.copy(center);
     let bsphere = bbox.getBoundingSphere(new THREE.Sphere(center));
 
     let zoomFactor = 2.0; 
@@ -210,7 +209,7 @@ Hooks.ThreeDHook = {
     let duration = 500; // Tempo da transição em ms
     let startTime = performance.now();
     let startCameraPosition = this.camera.position.clone();
-    let targetCameraPosition = this.centroid.clone().add(new THREE.Vector3(0, 0, newCameraDistance));
+    let targetCameraPosition = center.clone().add(new THREE.Vector3(0, 0, newCameraDistance));
 
     const animateZoom = (currentTime) => {
       let elapsed = currentTime - startTime;

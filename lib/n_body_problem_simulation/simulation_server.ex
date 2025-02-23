@@ -29,7 +29,7 @@ defmodule NBodyProblemSimulation.SimulationServer do
   end
 
   def get_state(simulation_id) do
-    GenServer.call(via_tuple(simulation_id), :get_state)
+    GenServer.call(via_tuple(simulation_id), :get_state, 10_000)
   end
 
   def set_strategy(simulation_id, strategy) do

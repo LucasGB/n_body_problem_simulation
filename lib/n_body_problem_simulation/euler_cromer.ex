@@ -19,9 +19,6 @@ defmodule NBodyProblemSimulation.Integration.EulerCromer do
   @spec update(NBodyProblemSimulation.Simulation.t(), keyword()) ::
           NBodyProblemSimulation.Simulation.t()
   def update(%NBodyProblemSimulation.Simulation{bodies: bodies} = simulation, opts) do
-    # IO.inspect(Nx.default_backend())
-    # IO.inspect(EXLA.Client.default_name())
-    # IO.inspect(EXLA.Client.get_supported_platforms())
     
     dt = Keyword.fetch!(opts, :dt)
     g_constant = Keyword.fetch!(opts, :g_constant)

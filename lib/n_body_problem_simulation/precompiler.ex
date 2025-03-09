@@ -6,13 +6,11 @@ defmodule NBodyProblemSimulation.Precompiler do
   def precompile_integration do
     Logger.info("Precompiling GPU integration functions...")
 
-    # Create small dummy tensors to trigger JIT compilation
     dummy_tensor = Nx.tensor([[1.0]])
     dummy_mass = Nx.tensor([1.0])
     dt = 0.001
     dummy_g_scale = 1
 
-    # Call the integration function to compile it for the GPU.
     _ = EulerCromer.euler_cromer_step(dummy_tensor, dummy_tensor, dummy_mass, dt, dummy_g_scale)
     _ = VelocityVerlet.velocity_verlet_step(dummy_tensor, dummy_tensor, dummy_mass, dt, dummy_g_scale)
 

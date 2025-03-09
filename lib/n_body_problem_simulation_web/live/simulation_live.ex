@@ -76,6 +76,13 @@ defmodule NBodyProblemSimulationWeb.SimulationLive do
             Toggle Gravity Grid
           </button>
           <button
+            id="focus-button"
+            style={"background-color: #420; color: #fff; padding: 10px; border-radius: 5px; width: 120px; text-align: center; cursor: pointer; border: 1px solid white;"}
+            data-body-id={4}
+          >
+            Focus Earth
+          </button>
+          <button
             id="adjust-button"
             style={"background-color: #f12; color: #fff; padding: 10px; border-radius: 5px; width: 120px; text-align: center; cursor: pointer; border: 1px solid white;"}
           >

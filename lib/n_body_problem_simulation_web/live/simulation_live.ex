@@ -29,14 +29,14 @@ defmodule NBodyProblemSimulationWeb.SimulationLive do
 
     {:ok, socket}
   end
-  
+
   @impl true
   def handle_event("stop_simulation", _params, socket) do
     simulation_id = socket.assigns.simulation_id
     SimulationServer.stop_simulation(simulation_id)
     {:noreply, push_navigate(socket, to: "/")}
   end
-  
+
   @impl true
   def handle_event("toggle_grid", _params, socket) do
     simulation_id = socket.assigns.simulation_id
@@ -45,14 +45,14 @@ defmodule NBodyProblemSimulationWeb.SimulationLive do
   end
 
   @impl true
-def handle_info({:simulation_update, new_simulation}, socket) do
-  simulation_id = socket.assigns.simulation_id
-  socket = assign(socket, :simulation, new_simulation)
-  
-  socket = Phoenix.LiveView.push_event(socket, "#{@grid_update}:#{simulation_id}", %{grid: new_simulation.grid})
-  
-  {:noreply, socket}
-end
+  def handle_info({:simulation_update, new_simulation}, socket) do
+    simulation_id = socket.assigns.simulation_id
+    socket = assign(socket, :simulation, new_simulation)
+    
+    socket = Phoenix.LiveView.push_event(socket, "#{@grid_update}:#{simulation_id}", %{grid: new_simulation.grid})
+    
+    {:noreply, socket}
+  end
 
   @impl true
   def render(assigns) do

@@ -6,6 +6,7 @@ defmodule NBodyProblemSimulation.Integration.VelocityVerlet do
 
   alias NBodyProblemSimulation.NxUtils
   require Nx.Defn
+  require Logger
 
   @doc """
   Performs a complete Velocity Verlet integration step.
@@ -36,7 +37,13 @@ defmodule NBodyProblemSimulation.Integration.VelocityVerlet do
     g_constant = Keyword.fetch!(opts, :g_constant)
     
     {positions, velocities, masses} = NxUtils.extract_tensors(bodies)
+    Logger.info("Starting GPU Velocity Vervet integration computation")
+    start_time = System.monotonic_time()
+    
     {new_positions, new_velocities} = velocity_verlet_step(positions, velocities, masses, dt, g_constant)
+    
+    end_time = System.monotonic_time()
+    Logger.info("GPU Velocity Vervet integration computation finished in #{System.convert_time_unit(end_time - start_time, :native, :millisecond)} ms")
     new_bodies = NxUtils.update_bodies(bodies, new_positions, new_velocities)
 
     %{simulation | bodies: new_bodies, time: simulation.time + dt}

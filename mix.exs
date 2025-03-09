@@ -19,7 +19,7 @@ defmodule NBodyProblemSimulation.MixProject do
   def application do
     [
       mod: {NBodyProblemSimulation.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :exla]
     ]
   end
 
@@ -38,9 +38,10 @@ defmodule NBodyProblemSimulation.MixProject do
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.0.0"},
       {:phoenix_pubsub, "~> 2.1"},
-      {:nx, "~> 0.5"},
-      # {:exla, "~> 0.5"},
+      {:nx, "~> 0.9.2"},
+      {:exla, "~> 0.9.2"},
       {:floki, ">= 0.30.0", only: :test},
+      {:benchee, "~> 1.0"},
       {:phoenix_live_dashboard, "~> 0.8.3"},
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},

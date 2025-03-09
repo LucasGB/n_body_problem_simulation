@@ -1,7 +1,6 @@
 defmodule NBodyProblemSimulation.Application do
 
   use Application
-
   @impl true
   @spec start(any(), any()) :: {:error, any()} | {:ok, pid()}
   def start(_type, _args) do
@@ -13,6 +12,10 @@ defmodule NBodyProblemSimulation.Application do
       NBodyProblemSimulationWeb.Endpoint
     ]
 
+    Task.start(fn ->
+      NBodyProblemSimulation.Precompiler.precompile_integration()
+    end)
+    
     opts = [strategy: :one_for_one, name: NBodyProblemSimulation.Supervisor]
     Supervisor.start_link(children, opts)
   end
